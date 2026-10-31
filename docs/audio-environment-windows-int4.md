@@ -1,10 +1,10 @@
-# Windows 小显存 Qwen-TTS：环境创建与 INT4 首样流程
+# Windows 小显存 Qwen-TTS：环境重建准备指南
 
-核验截至 **2026-10-31**。推荐路线：**隔离环境 → 官方 1.7B Base → bitsandbytes NF4 运行时量化 → 受控短样 → 分层检查**。已有成功层直接复用证据，不为读教程重装或重测。
+核验截至 **2026-10-31**。本文交付**平台检查、隔离依赖安装、完整 92 包版本核验和模型/参考准备**。**端到端生成实现尚未交付**：仓库没有可复现案例出音的量化装配、必要适配和真实启动入口；完成本文不等于已能生成音频。待办见第 4 节。
 
-> **21 码点、4.08 秒**首样已获用户试听认可；后续四个短片共 **140 码点、32.16 秒**，已通过独立文件身份、完整解码与技术检查，新片内容、声线和听感仍未验。以下首样资源数字保留其样本归属，不外推长音频或长期稳定性。示例路径、文本及声音身份均为占位；命令未在本次文档整理中执行。
+案例已有 21 码点、4.08 秒首样获用户试听认可；后续四片共 140 码点、32.16 秒通过独立文件/完整解码/技术检查，内容、声线、听感仍未验。这里只记录已证条件，不为写教程重装或重测；新机及 SoX 源包重建均未验证。
 
-## 1. 前置条件
+## 1. 前置条件与配置选择
 
 - 先确认本次任务许可、输入版本、GPU 独占和资源交还；沿用当前资源锁、审批、Job 与预算，不能另开裸 worker 抢 GPU。参考音频须有使用权及必要同意。
 - 本案例实测组合如下；**不是最低配置或通用速度承诺**：
@@ -44,132 +44,96 @@
 | 0.6B Base / INT4（NF4） | 同一 Base 运行时量化；效果差异未验 | 官方未给定，需实测；无本机峰值 | GPU-only / CPU offload 均未验，须另核适配 | 更低权重存储的候选，不保证总显存或质量 | 仅方案，未验 |
 | 1.7B Base / BF16 | 同类 Base 克隆能力；不量化 | 官方未给定，需实测；本机 4 GB + CPU offload 曾加载，无成功生成峰值 | `device_map="auto"`，GPU + CPU | 非量化基线候选，须补生成验证 | 本机仅加载已证，非成功生成 |
 | 1.7B Base / INT8 | 同一 Base 运行时量化；codec 保持浮点 | 本机 4 GB：reserved 峰 **2,927,624,192 B**，codec 仍 OOM；RAM 门槛未给定，需实测 | GPU-only，无 CPU/disk offload；codec/敏感层 BF16 | 本机不能作为已可用生成路线 | 本机量化有效；生成失败 |
-| 1.7B Base / INT4（NF4） | 同一 Base 运行时量化；codec 保持浮点 | 本机 4 GB 首样：reserved 峰 **2,529,165,312 B ≈2.36 GiB**；Job private 峰约 **9.76 GiB**；最低 RAM 未给定，需实测 | GPU-only，无 CPU/disk offload；codec/敏感层 BF16 | 本机可复用的已证短样配置；长段另验 | 本机 **4.08 秒首样成功**；后续四短片技术检查通过，非长期连续/长音频稳定 |
+| 1.7B Base / INT4（NF4） | 同一 Base 运行时量化；codec 保持浮点 | 本机 4 GB：首样框架 reserved 峰 **2,529,165,312 B ≈2.36 GiB**；后续四片峰 **2,860,515,328 B ≈2.66 GiB**；Job private 峰约 **9.76 GiB**；最低 RAM 未给定，需实测 | GPU-only，无 CPU/disk offload；codec/敏感层 BF16 | 本机可复用的已证短样配置；长段另验 | 本机 **4.08 秒首样成功**；后续四短片技术检查通过，非长期连续/长音频稳定 |
 
 量化均指**官方 Base 加载时的运行时路线，不是官方原生 INT8/INT4 checkpoint**；兼容边界沿用上表实际版本及第 2 节官方来源，不能从 bnb 支持某硬件推定 0.6B 集成已通过。reserved 仅为 Torch allocator 峰值，Job private 峰不是系统 RAM 最低值；20 GiB 入场线是项目合同余量。权重算术估计不含 codec、缓存、激活等开销，不能充当总峰值或可运行证据。**0.6B 只作选型比较，不切换当前生产模型。**
 
-## 2. 官方依赖与隔离环境
+## 2. 建立并核验隔离依赖
 
-### 建目录和 venv（以下为 PowerShell）
-
-先准备已核准的 Python 3.11.15 x64；可参考 [uv 官方 Python 管理说明](https://docs.astral.sh/uv/guides/install-python/)。将 `$PY311` 换成实际绝对路径。目标若已存在、大小写碰撞或父链有 junction/symlink，**先停止，不覆盖**。
+将本节两个 PowerShell 代码段按顺序保存为同一份 `.ps1` 并整体执行；不要在交互窗口忽略异常后继续粘贴下一条。先准备 [Python 3.11.15 x64](https://docs.astral.sh/uv/guides/install-python/)；示例为占位绝对路径。目标已存在、大小写碰撞或父链有 junction/symlink 时先核对，不覆盖。`$ErrorActionPreference` 只处理 PowerShell 错误，**每个 native Python 命令仍须立即检查 `$LASTEXITCODE`，失败即停，不能继续安装**。
 
 ```powershell
+$ErrorActionPreference = "Stop"
 $R = "D:/audio-project"
-$PY311 = "D:/tools/python311/python.exe" # 占位：替换为已核准解释器
+$PY311 = "D:/tools/python311/python.exe" # 替换为已核准解释器
+& $PY311 -I -B -c "import sys,struct; assert sys.platform=='win32' and struct.calcsize('P')==8 and sys.version_info[:3]==(3,11,15); print('Windows x64 CPython 3.11.15')"
+if ($LASTEXITCODE -ne 0) { throw "平台检查失败；停止，不创建环境或安装包" }
 if (Test-Path -LiteralPath $R) { throw "目标已存在，请先核对，不覆盖" }
 New-Item -ItemType Directory -Path $R | Out-Null
 "tools", "downloads", "models", "inputs", "outputs", "run-empty" | ForEach-Object {
     New-Item -ItemType Directory -Path "$R/$_" | Out-Null
 }
 & $PY311 -I -B -m venv "$R/.venv-int4"
+if ($LASTEXITCODE -ne 0) { throw "venv 创建失败" }
 $P = "$R/.venv-int4/Scripts/python.exe"
 Set-Location "$R/run-empty"
 ```
 
-脚本放 `tools/`；每个下载/解包件用自己的新空目录，不能在下载目录运行解释器。读取外来文件的 Python 使用 `-I`，避免同名模块注入；不要复制 venv 到新路径冒充重建。
+使用[完整 runtime 锁](locks/qwen-tts-int4-win64-py311-cu128.lock.txt)重建成功路线的 92 包；原 BF16 的 91 包环境保留，不混装或复制 venv。锁的官方来源为 [PyPI](https://pypi.org/simple/) 与 [PyTorch cu128](https://download.pytorch.org/whl/cu128/)，每项保留工件 SHA-256。
 
-### 锁定、安装、非 GPU 基础检查
-
-默认重建成功 **INT4 的 92 包**，原 BF16 的 91 包 venv 只读保留，不混装。附件为[完整 runtime 版本与工件哈希锁](locks/qwen-tts-int4-win64-py311-cu128.lock.txt)及[独立 SoX 构建工具约束](locks/sox-1.5.0-build.constraints.txt)。来源是已存成功安装清单/官方工件回执；公开索引用 [PyPI](https://pypi.org/simple/) 与 [PyTorch cu128](https://download.pytorch.org/whl/cu128/)，发布摘要可按 `https://pypi.org/pypi/<包名>/<版本>/json` 核验。
-
-**SoX 例外：**成功环境的 pip `sox 1.5.0` 是经审本地构建 wheel，未公开发布；附件改用同版本[官方源包](https://pypi.org/pypi/sox/1.5.0/json)的已核 SHA-256，绝不伪造公共 wheel 地址。新机须另经有界构建审查；构建工具约束不安装进 runtime、不自动重现原守卫，也不保证新 wheel 字节相同。无获准构建入口时停在准备；不要安装外部 SoX 代替这个 Python 包。
-
-以下仅为**获准新机受控安装/构建中的命令形态**，不是本次执行或原离线安装的逐字重放。`$L` 指本文随附锁目录；pip 先固定为 **26.2.2**，以支持构建约束。锁仅放行 SoX 源包，其余必须为已锁 wheel；构建不能退回 runtime 的 setuptools 80.9.0。
+**SoX 例外：**历史成功 wheel 为本地构建、未公开；锁改用同版本官方 `sox 1.5.0` 源包及已核哈希。新机只能在已审的有界构建条件下使用[独立构建约束](locks/sox-1.5.0-build.constraints.txt)，缺此条件先停在准备。约束中的哈希注释是来源记录，**pip 不会强制校验注释**；它也不保证重建 wheel 字节相同。构建工具不能装入 runtime，外部 SoX 不能替代该 Python 包。
 
 ```powershell
-$L = "D:/tutorial-repo/docs/locks" # 占位：本教程副本的锁目录
-& $P -I -B -c "import sys,struct; assert sys.platform=='win32' and struct.calcsize('P')==8 and sys.version_info[:3]==(3,11,15); print('Windows x64 CPython 3.11.15')"
+$T = "D:/tutorial-repo" # 本仓库副本
+$L = "$T/docs/locks"
 & $P -I -B -m pip --isolated install --no-deps --only-binary=:all: "https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+if ($LASTEXITCODE -ne 0) { throw "pip bootstrap 失败" }
 & $P -I -B -m pip --isolated install --no-cache-dir --build-constraint "$L/sox-1.5.0-build.constraints.txt" --config-settings=--global-option=--no-user-cfg -r "$L/qwen-tts-int4-win64-py311-cu128.lock.txt"
+if ($LASTEXITCODE -ne 0) { throw "锁定依赖安装失败" }
 & $P -I -B -m pip --isolated check
-& $P -I -B -c "import importlib.metadata as m; print({n:m.version(n) for n in ('torch','torchaudio','qwen-tts','transformers','accelerate','bitsandbytes','sox','pillow')}); print('distributions=',len(list(m.distributions())))"
+if ($LASTEXITCODE -ne 0) { throw "pip check 失败" }
+& $P -I -B "$T/docs/tools/verify_environment.py" --lock "$L/qwen-tts-int4-win64-py311-cu128.lock.txt"
+if ($LASTEXITCODE -ne 0) { throw "完整依赖名称/版本集合不匹配" }
 ```
 
-**风险边界：**[Pillow 官方 PDF 公告](https://github.com/python-pillow/Pillow/security/advisories/GHSA-p4wg-p73j-c528)及[图像形态公告](https://github.com/python-pillow/Pillow/security/advisories/GHSA-58r4-6rv3-gfh8)均覆盖实际 **12.3.0**，修复版为 **13.0.0**；现有 Gradio **6.16.0** 要求 Pillow<13，不能硬升。此锁是历史成功基线而非安全推荐：不接收/处理图片或 PDF、不开放 Gradio 服务，不等于版本已修复或风险归零；保留的 setuptools 80.9.0 也不能当成已修复版本用于任意源码构建。新增用途或升版另审，不改在产环境。
+[验证器](tools/verify_environment.py)仅用标准库读取包元数据，不导入 Torch/bnb：将名称按大小写及 `-_.` 规范化后，比较**全部 92 个精确版本**，包括 direct wheel URL 对应的 `torch/torchaudio==2.11.0+cu128`。缺项、额外包、错版本及重复元数据均非零退出；bootstrap/构建包没有豁免。`pip check` 不能替代此集合比较。验证器不检查已安装文件字节、工件来源或 ABI；安装工件哈希仍由锁和 pip `--require-hashes` 校验。[回归检查](tools/test_verify_environment.py)使用临时包元数据，不安装这 92 包。
 
-**成功标志：**上面的平台/包版本核验只读标准库与包元数据、不导入 Torch/bnb；`pip check` exit 0、92 包版本集合与锁一致。`pip freeze` 只是环境记录，不保证跨机复现；此锁只对应上述平台/构建，**尚未做跨机重建或 SoX 源包重建验证**。新机此后仍需获准按第 4—5 节做一次有界短样，核格式、非静音、约束/回收与试听；不能用安装通过代替音频通过，也不要求复制案例帧数或私有 SHA。
+**风险边界：**Pillow **12.3.0** 在两份[官方 PDF 公告](https://github.com/python-pillow/Pillow/security/advisories/GHSA-p4wg-p73j-c528)/[图像公告](https://github.com/python-pillow/Pillow/security/advisories/GHSA-58r4-6rv3-gfh8)的影响范围内，修复版为 **13.0.0**，但现有 Gradio **6.16.0** 要求 Pillow<13。此锁是历史成功记录，不是安全推荐；不处理图片/PDF、不开公网 Gradio，不代表风险已修复。保留的 setuptools 80.9.0 不用于任意源码构建；升级另行验证，不改在产环境。
 
-## 3. 模型与参考准备
+**本步通过：**平台断言、安装、`pip check` 和完整集合比较均 exit 0。只证明环境准备检查通过；精确 VC++/libsndfile DLL、跨机及 SoX 重建仍有缺项，不保证出音或跨机复现。
 
-- 固定 [官方 Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base/tree/fd4b254389122332181a7c3db7f27e918eec64e3)，revision：`fd4b254389122332181a7c3db7f27e918eec64e3`。获准下载后可用官方 Hub API；不要自动追 `main`：
+## 3. 准备模型与自己的参考
+
+固定[官方 Qwen3-TTS-12Hz-1.7B-Base revision](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base/tree/fd4b254389122332181a7c3db7f27e918eec64e3)，不自动追 `main`。完成第 2 节后，先将有使用权及必要同意的参考放入 `inputs/reference.wav`，再将以下段保存为 `.ps1` 执行获准的下载准备：
 
 ```powershell
+$ErrorActionPreference = "Stop"
+$R = "D:/audio-project"
+$P = "$R/.venv-int4/Scripts/python.exe"
+if (-not (Test-Path -LiteralPath "$R/inputs/reference.wav")) { throw "请先准备自己的参考音频" }
 & $P -I -B -c "from huggingface_hub import snapshot_download; snapshot_download('Qwen/Qwen3-TTS-12Hz-1.7B-Base', revision='fd4b254389122332181a7c3db7f27e918eec64e3', local_dir=r'$R/models/base')"
-```
-
-- 核完整文件集合（含 `speech_tokenizer/`、配置和文本 tokenizer 文件），权重大小/SHA-256 按该 revision 的官方 LFS/发布元数据对照；不执行仓库自带脚本。本例是**同一官方 Base 加载时量化**，不是官方原生 INT4 checkpoint。
-- 准备自己的 `inputs/reference.wav`、逐字参考稿及已审短句。案例参考为 **24 kHz / mono / PCM16 / 6.7 秒**，原 PCM16 转 float32 后除以 32768；不靠换参考、改字或 DSP 让测试过门。声音身份用通用 `NARRATOR`，参考哈希登记为 `<APPROVED_REFERENCE_SHA256>`，不要公开私有参考或其逐字稿。
-
-```powershell
+if ($LASTEXITCODE -ne 0) { throw "固定版本模型下载失败" }
 Get-FileHash -Algorithm SHA256 "$R/inputs/reference.wav"
 ```
 
-**成功标志：**模型 revision/文件核验、参考格式/批准哈希、参考逐字稿与短句版本均绑定；缺件即停，不造替身。
+核模型完整集合（含 speech_tokenizer、配置、文本 tokenizer）及该 revision 官方大小/哈希；不执行模型仓库脚本。参考登记实际格式、SHA 和逐字参考稿，案例是 24 kHz/mono/PCM16/6.7 秒，不要求复制案例声音或私有哈希。
 
-## 4. INT4 受控运行
+## 4. 到此停止：端到端生成待办
 
-**先核执行入口，而不是直接跑上游 demo。**成功样片使用项目已审控制器及局部适配；本文不提供绑定私有输入的生产启动包。新环境没有相应受控入口时停在这里，不能把下列参数摘录当成可独立运行的脚本。
+**本仓库尚无可执行生成入口。**已删除依赖未公开 `quant_driver.v3.py` 的示例调用，不用占位脚本或参数摘录冒充完整实现。后续交付须完成并单独验证：
 
-1. 主模型量化参数与加载条件保持以下实际成功配置；codec/tokenizer 及敏感层保留 BF16，单 GPU、SDPA，不做 CPU/disk offload：
+1. **量化装配：**官方 1.7B Base 的运行时 NF4/double quant、BF16 compute、CUDA:0/SDPA；codec/tokenizer 与敏感层保持 BF16，禁止误量化嵌套 tokenizer。不是官方原生 INT4 checkpoint。
+2. **两处必要适配：**嵌套 tokenizer 加载剔除量化 kwargs；精确结构下的 meta 控制 ID 路由修复。当前只有案例描述，没有可移植实现及相应回归验证，不能据摘要套用任意 meta 错误。
+3. **参考与文本绑定：**真实参考 PCM/逐字稿/短句、版本及哈希核验，Base API 参数和采样设置固定；不得公开案例台本或复制旧批准身份。
+4. **真实启动与验收：**发布脱敏的控制入口、资源互斥/预算/输入保护及 API BEGIN/RETURN 账，按实际 WAV 完整解码、资源回收和真实听审验收；新机失败分支也须验证。
 
-```python
-from transformers import BitsAndBytesConfig
-import torch
+不为补教程运行 GPU 或临时编造未验证代码。环境准备通过、原机曾成功、ASR 转写通过，均不等于新机端到端生成、声线或听感通过。
 
-quant = BitsAndBytesConfig(
-    load_in_4bit=True, bnb_4bit_quant_type="nf4",
-    bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.bfloat16,
-    bnb_4bit_quant_storage=torch.uint8, llm_int8_enable_fp32_cpu_offload=False,
-    llm_int8_skip_modules=[
-        "speaker_encoder", "talker.text_projection", "talker.codec_head",
-        "talker.code_predictor.lm_head",
-        "talker.code_predictor.small_to_mtp_projection", "speech_tokenizer",
-    ],
-)
-load_kwargs = dict(
-    quantization_config=quant, device_map={"": 0}, dtype=torch.bfloat16,
-    attn_implementation="sdpa", local_files_only=True, trust_remote_code=False,
-    use_safetensors=True, weights_only=True, offload_state_dict=False,
-)
-```
+## 附录：案例数字与故障边界
 
-2. **两处必要适配不能省略：**qwen-tts 0.1.1 嵌套加载 tokenizer 时剔除量化 kwargs，仍保留 CUDA:0/BF16/SDPA；采用单次局部 loader 委托，不修改包文件/全局类。code predictor 若因报告设备为 meta 而初始化控制 ID，仅在已核真实 CUDA BF16 `[1,2,2048]` embeddings 条件下路由空的 CUDA int64 `[1,0]` 控制 ID；不搬 meta 权重、不伪改 `.device`、不改变采样/EOS。版本或结构不符即停，不能把任意 meta 错误套用此修法。
-3. 控制器从空工作目录，以绝对解释器路径、`-I -B` 启动 worker；保留原资源锁、输入只读保护及 BEGIN/RETURN 账。成功调用顺序为 `from_pretrained` → `create_voice_clone_prompt(ref_audio=(reference, 24000), ref_text=已核逐字稿, x_vector_only_mode=False)` → `generate_voice_clone`。Base 不发送 `speaker/instruct/emotion`；seed 在 API 外设置。
-4. 原短样采样设置：seed `20261030`；主/子 talker 都是 sample、temperature `0.7`、top_p `0.9`、top_k `50`；repetition_penalty `1.05`、max_new_tokens `480`、non_streaming_mode `True`。不加移调、变速、增益或归一化。复现时冻结全部参数，不把 token 上限当成保证时长。
-5. 保留原准入：Job 私有内存上限 **12 GiB**、墙钟 **180 秒**；GPU 预算取父预算、`floor(0.75×总量)`、`当前空闲−512 MiB` 的最小值，主模型与 codec 共用。越界/OOM 记录原错并停止，不自动重抽；allocator 限额不是整卡物理显存硬配额。
+| 已证样本 | 时长 | Torch allocator reserved 峰 | 结论范围 |
+| --- | ---: | ---: | --- |
+| 21 码点首样 | 4.08 秒 | 2,529,165,312 B，约 2.36 GiB | 用户认可仅覆盖此首样；Job private 峰约 9.76 GiB |
+| 后续四片，140 码点 | 共 32.16 秒 | 2,860,515,328 B，约 2.66 GiB | 独立身份/解码/技术检查通过；内容、声线、听感未验 |
 
-已审控制器的调用形态如下，**仅为命令结构**；脚本须已按新任务复核绑定，变量来自本次真实批准、GPU 交还及系统 NVML 文件核验，不复制旧会话值或填假哈希：
-
-```powershell
-& $P -I -B "$R/tools/quant_driver.v3.py" int4 `
-  --owner-turn $ApprovedTurn --gpu-return-evidence $GpuReturnReceipt `
-  --gpu-return-sha256 $GpuReturnSHA256 --nvml-sha256 $NvmlSHA256 --nvml-bytes $NvmlBytes
-```
-
-**成功标志：**实际读回 **231 层**量化生效、浮点边界正确，factory/prompt/generate 各一次 BEGIN 与 RETURN；完整新 WAV 落盘。新任务是否可直接 INT4 由当前授权及执行器决定；原历史 v3 只允许实证 INT8 失败后的条件 INT4，不删 fallback gate、不复制旧批准或旧失败来放行。
-
-## 5. 成功检查与保留
-
-按三层分别记结果，不以“有 WAV”或一个退出码覆盖全部结论：
-
-- **生成层：**API 账完整；整 WAV 解码、单声道 PCM16 / 24000 Hz，有限且非静音，无擅自截尾。绑定原文、参考和输出 SHA；内容/声音身份仍需独立复核及真实试听。
-- **原约束层：**Job exit 0、预算及输入保护均满足。案例 INT4：**97,920 帧 / 4.08 秒 / 195,884 B**，Job 总耗时 **26.844 秒**；allocator reserved 峰值 **2,529,165,312 B**、紧后预算 **2,929,406,772 B**，Job 私有峰约 **9.76 GiB**。这些不是通用速度，也不能以权重压缩比推算总显存。
-- **退出回收层：**Job Active 0、记录的进程消失、持有输入/句柄、mutex 和 NVML 全部闭合，退出后全局 GPU 观测回到基线。案例三次均为 **140,509,184 B**；NVML 全局读数不证明精确进程归属，也不是全机显存必须为 0。
-
-历史 INT4 controller **exit 1 原样保留**：它把退出前 allocated/reserved 非零一并判失败；后来纯标准库独立报告将生成、原约束、退出回收分层核实，报告 exit 0、必要正反例 **8/8** 通过，并未把旧退出码改绿。技术判断、用户首样接受及长段稳定性分别记账。
-
-**恢复/保留：**原 BF16 venv、模型、输入、失败对照、原始配音、母带和正式成品不动；新输出用新目录。断连先核原进程/锁/调用账/完整落盘，只恢复确证缺失阶段；UNKNOWN 不补成 0，成功层不重跑。回退指向原环境，不在原 venv 内升降依赖或删成果。
-
-## 6. 少量常见故障
+reserved 是框架分配器指标，**两行均不是设备总显存峰或硬件最低要求**；Job private 也不是最低 RAM。历史控制器曾要求 Job 12 GiB/180 秒及按实际空闲收紧的 GPU 预算；这是案例合同，不是本指南已交付的控制器。旧 exit 1 与后续离线分层复核分别保留，不为美化退出码重跑。
 
 | 现象 | 最小处理 |
 | --- | --- |
-| Torch 导入 1114 / DLL 初始化失败 | 先核实际解释器、Torch wheel 与 VC 运行库/DLL 版本；按官方来源处理需获准的系统组件，不拼 DLL、不先归因 GPU 驱动。 |
-| wheel 下载中断 / TLS 错误 | 保留部分件与原错，在原授权内核官方来源及完整哈希后才继续；不关 TLS、不换不明镜像。 |
-| meta tensor / CPU offload | 先分清真实未物化权重与空控制 ID 的设备误路由，核第 4 节精确适配；不全局篡改设备或忽略 meta。 |
-| 守卫误拦正常对象 | 原生 43 个 FP32 buffer 合计 1,792 B、Windows venv 重定向父链和可选 `org.python.core` 探测须按精确结构/来源分类；可选缺模块保持正常 `ImportError` 语义，不全面放宽守卫。 |
-| INT8 codec 解码 OOM | 历史 INT8 在新增 16 MiB 分配时失败；只有完成回收且满足当次条件授权才转 INT4，不为教程重跑 INT8。 |
-| Tool use aborted / 终态未知 / 附件 403 | 拒绝不换路绕过，先对账并保留 UNKNOWN；403 仅证原官方 GET 被拒，鉴权/网关/附件权限未分，不猜 scope、不重试 GET/HEAD 或重传。该首样已能试听，附件诊断不阻本机制作。 |
+| Torch 1114/DLL 初始化失败 | 核实际解释器、wheel、VC 运行库/DLL 版本，不拼 DLL，不先归因驱动。 |
+| 下载/TLS 中断 | 保留原错；核官方工件及完整哈希后恢复，不关闭 TLS。 |
+| meta/CPU offload/守卫误判 | 按精确结构区分设备路由、原生 FP32 buffer、venv 父链及正常可选 ImportError；不全局放宽。 |
+| INT8 codec OOM | 保留真实失败并完成回收；转 INT4 须符合当前任务，不为教程复跑。 |
+| 断流、UNKNOWN 或附件拒绝 | 对账原进程/锁/回执，只恢复确证未执行部分；不换路绕拒、重传规避或补造历史指标。 |
 
-案例来源为既有 `environment-continuation-result.json`、`original-pins.json` / `installed.json`、`backend-source.json`、驱动 `FINAL-VERIFICATION.md`、`FIRST-MODEL-RUN-RESULT.v1.json`、`INT4-FIRST-SAMPLE-TECHNICAL-REVIEW.v1.json` 与 `OUTCOME-POLICY-CHECKS.v1.json` 的脱敏事实；原件留受控本地，**不是读者下载前置**。公开入口仅使用本文所列官方站点；不发布台本、参考素材、私有附件或运行身份。
+原 BF16 venv、模型、输入、失败记录、原始配音、母带及成品保留原位，新输出用新目录。本指南只公开脱敏事实与官方来源，不含音频、台本文字、私有运行脚本或凭据。

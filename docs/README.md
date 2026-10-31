@@ -1,5 +1,6 @@
 # 教程与操作说明
 
-- [Windows 小显存 Qwen-TTS：环境创建与 INT4 首样流程](audio-environment-windows-int4.md) — 前置条件、官方依赖、模型/参考、受控运行、成功检查与少量故障处理。
+- [Windows 小显存 Qwen-TTS：环境重建准备指南](audio-environment-windows-int4.md) — 前置条件、模型规格、隔离依赖、完整 92 包核验及模型/参考准备。
+- [依赖验证器](tools/verify_environment.py)与[回归检查](tools/test_verify_environment.py)仅使用标准库，不导入生产模型。
 
-教程不替代当前任务授权、资源锁、执行合同或正式验收；首样结果不外推长音频稳定性。
+**端到端生成实现尚未交付。**本教程不包含量化装配、必要适配及真实启动入口；新机完整出音、跨机和长音频稳定性均未验证。
