@@ -7,6 +7,7 @@
 ## 1. 前置条件与配置选择
 
 - 先确认本次任务许可、输入版本、GPU 独占和资源交还；沿用当前资源锁、审批、Job 与预算，不能另开裸 worker 抢 GPU。参考音频须有使用权及必要同意。
+- 项目负责人沿原任务协调制作、收取核听结果；当前授权内无法解决的阻塞，连同原始证据和待执行事项交云端Dot协调。Projects 不可用时保留原件与待回填项，恢复后核对实际记录。会话管理沿[项目巡检与交接规范](session-lifecycle-management.md)。
 - 本案例实测组合如下；**不是最低配置或通用速度承诺**：
 
 | 项目 | 成功路线版本 / 条件（缺项明示） |
@@ -24,7 +25,7 @@
 | pip SoX / 外部工具 | Python 包 **sox 1.5.0**；外部 SoX 在该执行路径未检出（`NO_SOX`），不是固定 PCM 路线前置；soxr 不是 SoX |
 | 图像 / UI 依赖 | Pillow **12.3.0**；Gradio **6.16.0**；保留已知风险版本，边界见第 2 节，不用于图片/PDF 或公网服务 |
 | 安装工具 | runtime 内 pip **26.2.2** / setuptools **80.9.0**；与附件所列独立 SoX 构建工具分开 |
-| 外部音频工具 | **Gyan.FFmpeg / ffprobe 8.1.2** 已核版本、绝对路径调用、临时音频转码及完整解码；它独立于 92 包 Python 锁，固定 PCM 路线无需为此重装。TorchCodec 不在成功 92 包清单中 |
+| 外部音频工具 | **Gyan.FFmpeg / ffprobe 8.1.2** 为原机可选工具，见下方[来源与 CPU 检查](#可选的-ffmpeg)。TorchCodec 不在成功 92 包清单中 |
 | 运行余量 | 原执行合同要求入场可用 RAM ≥20 GiB、卷可用 ≥20 GiB；不能把 4 GB 显存当作只需少量系统内存 |
 
 - 在获准检查时用 `nvidia-smi` 核加载版本；驱动显示的 CUDA 能力上限**不等于** Torch runtime 或已安装 Toolkit。使用 cu128 wheel 不必据此另装整套 CUDA Toolkit。
@@ -56,7 +57,7 @@
 $ErrorActionPreference = "Stop"
 $R = "D:/audio-project"
 $PY311 = "D:/tools/python311/python.exe" # 替换为已核准解释器
-& $PY311 -I -B -c "import sys,struct; assert sys.platform=='win32' and struct.calcsize('P')==8 and sys.version_info[:3]==(3,11,15); print('Windows x64 CPython 3.11.15')"
+& $PY311 -I -B -c "import sys,sysconfig; assert sys.platform=='win32' and sysconfig.get_platform()=='win-amd64' and sys.version_info[:3]==(3,11,15); print('Windows x64 CPython 3.11.15')"
 if ($LASTEXITCODE -ne 0) { throw "平台检查失败；停止，不创建环境或安装包" }
 if (Test-Path -LiteralPath $R) { throw "目标已存在，请先核对，不覆盖" }
 New-Item -ItemType Directory -Path $R | Out-Null
@@ -91,6 +92,12 @@ if ($LASTEXITCODE -ne 0) { throw "完整依赖名称/版本集合不匹配" }
 **风险边界：**Pillow **12.3.0** 在两份[官方 PDF 公告](https://github.com/python-pillow/Pillow/security/advisories/GHSA-p4wg-p73j-c528)/[图像公告](https://github.com/python-pillow/Pillow/security/advisories/GHSA-58r4-6rv3-gfh8)的影响范围内，修复版为 **13.0.0**，但现有 Gradio **6.16.0** 要求 Pillow<13。此锁是历史成功记录，不是安全推荐；不处理图片/PDF、不开公网 Gradio，不代表风险已修复。保留的 setuptools 80.9.0 不用于任意源码构建；升级另行验证，不改在产环境。
 
 **本步通过：**平台断言、安装、`pip check` 和完整集合比较均 exit 0。只证明环境准备检查通过；精确 VC++/libsndfile DLL、跨机及 SoX 重建仍有缺项，不保证出音或跨机复现。
+
+### 可选的 FFmpeg
+
+原机已装 WinGet 的 `Gyan.FFmpeg 8.1.2`。2026-10-31 的检查以绝对路径运行 ffmpeg、ffprobe，也在新 PowerShell 中按名称运行成功。独立 CPU 检查生成了 1 秒 48 kHz 单声道 PCM16 正弦波，转为 FLAC 后完整解码成功。固定 PCM 生成路线无需安装 FFmpeg，它独立于 Python 锁。
+
+[来源锁](locks/ffmpeg-8.1.2-sources.json)分别记录 WinGet 与发布者公布的 ZIP 摘要、原机两个 EXE 的实测摘要。前者供下载校验，后者供比对已装文件；原机检查未重新下载并解包该 ZIP。新机可用 `winget list --id Gyan.FFmpeg --exact --source winget` 查询安装记录，用 `winget show --id Gyan.FFmpeg --exact --version 8.1.2 --source winget` 核对来源。仅在确有用途、确认缺装并取得安装授权后，按核过的包与精确版本安装。原机检查未改持久 PATH。
 
 ## 3. 准备模型与自己的参考
 

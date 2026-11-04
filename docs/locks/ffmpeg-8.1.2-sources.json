@@ -1,0 +1,45 @@
+{
+  "package": {
+    "id": "Gyan.FFmpeg",
+    "version": "8.1.2",
+    "architecture": "x64"
+  },
+  "published_archive": {
+    "winget_manifest": "https://github.com/microsoft/winget-pkgs/blob/774f5a89d04a669f5000ddd8e53e64627c9efe8f/manifests/g/Gyan/FFmpeg/8.1.2/Gyan.FFmpeg.installer.yaml",
+    "url": "https://github.com/GyanD/codexffmpeg/releases/download/8.1.2/ffmpeg-8.1.2-full_build.zip",
+    "sha256": "b8cdefab5f50590a076c27c2b56b0294a0e6154faded28ba1ba05ebc4f801f57",
+    "bytes": 266085149
+  },
+  "existing_installation_2026_10_31": {
+    "executables": [
+      {
+        "filename": "ffmpeg.exe",
+        "bytes": 242496512,
+        "sha256": "ad8f211bc894755e0061c55ab280ae00e8d3d4f15a8cc4372b24cfa247b5942e"
+      },
+      {
+        "filename": "ffprobe.exe",
+        "bytes": 242291712,
+        "sha256": "9df3b0b5275e830961df6d94e1f7a71121a7abd5ff708e9fec8a0b6084a55015"
+      }
+    ],
+    "synthetic_cpu_test": {
+      "signal": "1000 Hz sine",
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "duration_seconds": 1,
+      "pcm16_wav": {
+        "sample_frames": 48000,
+        "bytes": 96078
+      },
+      "flac": {
+        "compression_level": 5,
+        "bytes": 21520,
+        "probe_time_base": "1/48000",
+        "probe_duration_ts": 48000,
+        "complete_decode_exit": 0
+      }
+    },
+    "verification": "原机回执记录已安装 EXE 的大小、SHA-256 和临时 CPU 转码结果。未在该次检查下载归档或比对从该 ZIP 解出的 EXE。"
+  }
+}
