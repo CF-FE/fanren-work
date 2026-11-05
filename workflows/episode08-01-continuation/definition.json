@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "workflow": "episode08-01-continuation",
+  "executor": "episode-delivery",
+  "control": "original_project_coordinator",
+  "acceptor": "incumbent_project_owner",
+  "nodes": {
+    "Q.readiness": {"purpose": "真实感知入口与资源、写域核实"},
+    "Q.first_listen": {"purpose": "负责人释放的首片盲听，回收后再决定余85"},
+    "Q.remaining": {"purpose": "负责人实际释放后的其余有界听检"},
+    "Q.review": {"purpose": "对稿、质量决定与未决项"},
+    "R.reconciliation": {"purpose": "56角色来源位与实物、原记录核对"},
+    "R.custody_supplement": {"purpose": "原保管补件及许可证据增量"},
+    "R.assets": {"purpose": "负责人确证缺口后指定准确素材交付或有界补制"},
+    "P.intake": {"purpose": "138WAV及86cue接收计划"},
+    "P.assembly": {"purpose": "194位装配映射、候选cue和封面原件关联"},
+    "P.export": {"purpose": "真实音轨、质量与配方齐备后的正式时轴、字幕与成品"},
+    "C.adopted": {"purpose": "封面v3原生采用决定与固定身份"},
+    "final.delivery": {"purpose": "负责人验收实际成品集合", "deliverable_kind": "episode_delivery"}
+  },
+  "edges": [
+    ["Q.readiness", "Q.first_listen"], ["Q.first_listen", "Q.remaining"],
+    ["Q.remaining", "Q.review"], ["Q.review", "P.export"],
+    ["R.reconciliation", "R.custody_supplement"], ["R.custody_supplement", "R.assets"],
+    ["R.assets", "P.export"], ["P.intake", "P.assembly"],
+    ["C.adopted", "P.assembly"], ["P.assembly", "P.export"], ["P.export", "final.delivery"]
+  ],
+  "release_policy": "Edges describe business dependencies. The incumbent owner releases each bounded successor; this file does not dispatch."
+}
