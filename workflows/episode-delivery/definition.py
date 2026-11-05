@@ -1,5 +1,4 @@
 # coding: utf-8
-# coding: utf-8
 """Fanren delivery units: local preparation and evidence checks only."""
 from datetime import datetime
 import hashlib
@@ -37,10 +36,46 @@ def validate_identity(identity, *, owner=False):
                 "missing owner generation")
 
 
+def verify_dispatch(record, executor):
+    dispatch = json.loads(artifact_bytes(record))
+    require(dispatch["exit_code"] == 0, "dispatch has no successful native submission")
+    response = json.loads(dispatch["stdout"])["result"]
+    require(response["type"] == "agent_prompted", "not a native prompt receipt")
+    native = response["agent"]
+    require(native["name"] == executor["name"] and native["pane_id"] == executor["pane"],
+            "dispatch target mismatch")
+    if "agent_session" in native:
+        require(native["agent_session"]["value"] == executor["thread"], "dispatch thread mismatch")
+
+
+def validate_binding(data, record, action_id):
+    require(record["schema_version"] == 1, "unsupported binding schema")
+    for key in ("task_id", "unit_id", "executor"):
+        require(record[key] == data[key], f"binding {key} mismatch")
+    require(record["action_id"] == action_id, "binding action mismatch")
+    require(isinstance(record["native_turn_id"], str) and record["native_turn_id"].strip(), "missing bound native turn")
+    verify_dispatch(record["dispatch_receipt"], data["executor"])
+    request = json.loads(artifact_bytes(record["native_request"]))
+    require(request["thread"]["id"] == data["executor"]["thread"], "native request thread mismatch")
+    turns = [turn for turn in request["turns"] if turn["id"] == record["native_turn_id"]]
+    require(len(turns) == 1, "native request turn mismatch")
+    verify_task_markers(turns[0], data, action_id)
+    return record["native_turn_id"]
+
+
+def verify_task_markers(turn, data, action_id):
+    markers = {"WORKFLOW_TASK_ID=" + data["task_id"], "WORKFLOW_ACTION_ID=" + action_id}
+    require(any(item.get("type") == "userMessage" and any(
+                block.get("type") == "text" and data["contact_ref"] in block.get("text", "")
+                and markers <= set(block.get("text", "").splitlines())
+                for block in item.get("content", [])) for item in turn["items"]),
+            "native request lacks this unique workflow task/action marker")
+
+
 def validate_input(data, task):
     require(data["schema_version"] == 1 and data["project"] == "fanren-work", "input identity mismatch")
     require(data["task_id"] == task, "task identity mismatch")
-    for key in ("contact_ref", "unit_id", "deliverable_kind", "native_turn_id"):
+    for key in ("contact_ref", "unit_id", "deliverable_kind"):
         require(isinstance(data[key], str) and data[key].strip(), f"missing {key}")
     require(Path(data["result_manifest_path"]).is_absolute(), "result manifest path must be absolute")
     deadline = datetime.fromisoformat(data["due_at"])
@@ -54,29 +89,31 @@ def validate_input(data, task):
     validate_identity(data["executor"])
     validate_identity(data["acceptor"], owner=True)
     artifact_bytes(data["owner_plan"])
-    dispatch = json.loads(artifact_bytes(data["existing_dispatch"]))
-    require(dispatch["exit_code"] == 0, "existing dispatch has no successful native submission")
-    response = json.loads(dispatch["stdout"])["result"]
-    require(response["type"] == "agent_prompted", "not a native prompt receipt")
-    native = response["agent"]
-    require(native["name"] == data["executor"]["name"] and native["pane_id"] == data["executor"]["pane"],
-            "existing dispatch target mismatch")
-    if "agent_session" in native:
-        require(native["agent_session"]["value"] == data["executor"]["thread"], "existing dispatch thread mismatch")
+    mode = data.get("mode", "ADOPT_EXISTING")
+    require(mode in ("ADOPT_EXISTING", "PREPARE_NEW"), "unsupported dispatch mode")
+    if mode == "ADOPT_EXISTING":
+        require(isinstance(data["native_turn_id"], str) and data["native_turn_id"].strip(), "missing original native turn")
+        verify_dispatch(data["existing_dispatch"], data["executor"])
+    else:
+        require("existing_dispatch" not in data and "native_turn_id" not in data,
+                "new preparation cannot claim an existing dispatch")
+        require(Path(data["dispatch_binding_path"]).is_absolute(), "dispatch binding path must be absolute")
     return {
-        "mode": "ADOPT_EXISTING", "task_id": task, "unit_id": data["unit_id"],
+        "mode": mode, "task_id": task, "unit_id": data["unit_id"],
         "contact_ref": data["contact_ref"], "executor": data["executor"],
-        "native_turn_id": data["native_turn_id"],
-        "existing_dispatch": data["existing_dispatch"], "owner_plan": data["owner_plan"],
+        "native_turn_id": data.get("native_turn_id"), "dispatch_binding_path": data.get("dispatch_binding_path"),
+        "existing_dispatch": data.get("existing_dispatch"), "owner_plan": data["owner_plan"],
         "due_at": data["due_at"], "scope": data["scope"], "inputs": data["inputs"],
         "deliverable_kind": data["deliverable_kind"], "deliverables": data["deliverables"],
         "acceptor": data["acceptor"], "prior_refs": data["prior_refs"],
-        "business_accepted": False, "dispatch_required": False,
+        "business_accepted": False, "requires_native_binding": mode == "PREPARE_NEW",
+        "dispatch_required": None if mode == "PREPARE_NEW" else False,
     }
 
 
 def verify_native_final(record, identity, turn_id):
     native = json.loads(artifact_bytes(record))
+    require(native.get("source_kind", "codex_app_read_thread") in ("codex_app_read_thread", "codex_transcript_snapshot.v1"), "unsupported native receipt source")
     require(native["thread"]["id"] == identity["thread"], "native result thread mismatch")
     turns = [turn for turn in native["turns"] if turn["id"] == turn_id]
     require(len(turns) == 1, "native result turn mismatch")
@@ -96,8 +133,15 @@ def validate_result(data, manifest, action_id):
     require(isinstance(manifest["summary"], str) and manifest["summary"].strip(), "missing result summary")
     if manifest["status"] != "DELIVERED":
         return False
-    require(manifest["native_turn_id"] == data["native_turn_id"], "result belongs to another native task turn")
+    if data.get("mode", "ADOPT_EXISTING") == "PREPARE_NEW":
+        binding = json.loads(Path(data["dispatch_binding_path"]).read_bytes())
+        native_turn = validate_binding(data, binding, action_id)
+    else:
+        native_turn = data["native_turn_id"]
+    require(manifest["native_turn_id"] == native_turn, "result belongs to another native task turn")
     turn, _ = verify_native_final(manifest["native_receipt"], data["executor"], manifest["native_turn_id"])
+    if data.get("mode") == "PREPARE_NEW":
+        verify_task_markers(turn, data, action_id)
     require(any(item.get("type") == "userMessage" and any(
                 block.get("type") == "text" and data["contact_ref"] in block.get("text", "")
                 for block in item.get("content", [])) for item in turn["items"]),
@@ -168,7 +212,7 @@ DEFINITION = {'version': 1,
  'start': 'prepare',
  'steps': {'prepare': {'kind': 'program', 'operation': 'prepare', 'next': 'native_handoff'},
            'native_handoff': {'kind': 'handoff',
-                              'instruction': 'ADOPT_EXISTING：沿prepare中的原生执行者与原投递回执收回本单元成果，禁止再次投递。只有完整原生结果及工件关联核清后才收件；阻塞只更新进度。',
+                              'instruction': '沿prepare中的显式目标处理：ADOPT_EXISTING只收原动作；PREPARE_NEW由原协调员唯一派发本handoff并绑定实际原生回执。完整结果及工件核清才收件，阻塞只记录进度。',
                               'next': 'verify_result'},
            'verify_result': {'kind': 'program',
                              'operation': 'verify_result',

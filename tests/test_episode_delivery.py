@@ -332,6 +332,136 @@ class EpisodeDeliveryTests(unittest.TestCase):
                 path.write_bytes(original)
         self.assertEqual(self.decide(record)["status"], "FINISHED")
 
+    def prepare_new_request(self):
+        request = deepcopy(self.request)
+        request.update(mode="PREPARE_NEW", dispatch_binding_path=str(self.root / "dispatch-binding.json"))
+        request.pop("existing_dispatch")
+        request.pop("native_turn_id")
+        return request
+
+    def binding(self, action):
+        return {"schema_version": 1, "task_id": self.request["task_id"], "unit_id": self.request["unit_id"],
+                "action_id": action, "executor": deepcopy(self.executor),
+                "native_turn_id": self.request["native_turn_id"], "dispatch_receipt": deepcopy(self.dispatch),
+                "native_request": self.new_native_request(action)}
+
+    def request_marker(self, action):
+        return "WORKFLOW_TASK_ID=" + self.request["task_id"] + "\nWORKFLOW_ACTION_ID=" + action
+
+    def new_native_request(self, action, *, marker=None, filename="prepared-native-request.json"):
+        text = self.request["contact_ref"] + "\n" + (self.request_marker(action) if marker is None else marker)
+        raw = {"source_kind": "codex_transcript_request.v1", "thread": {"id": self.executor["thread"]},
+               "turns": [{"id": self.request["native_turn_id"], "items": [{"type": "userMessage",
+                          "content": [{"type": "text", "text": text}]}]}]}
+        return self.write_artifact(filename, self.json_bytes(raw))
+
+    def new_manifest(self, action):
+        manifest = self.manifest(action)
+        manifest["native_receipt"] = self.native_receipt(self.executor, manifest["native_turn_id"],
+            "prepared-worker-final.json", contact_ref=self.request["contact_ref"] + "\n" + self.request_marker(action))
+        return manifest
+
+    def test_prepare_new_requires_a_real_binding_before_collecting_without_dispatching(self):
+        request = self.prepare_new_request()
+        waiting = self.initialize(request)
+        self.assertEqual((waiting["status"], waiting["step"]), ("WAITING_RECEIPT", "native_handoff"))
+        self.assertEqual(waiting["outputs"]["prepare"]["mode"], "PREPARE_NEW")
+        self.assertIsNone(waiting["outputs"]["prepare"]["dispatch_required"])
+        self.assertIs(waiting["outputs"]["prepare"]["requires_native_binding"], True)
+        self.assertIsNone(waiting["dispatch_required"])
+        self.assertEqual(waiting["dispatch_state"], "UNBOUND_NEEDS_RECONCILIATION")
+        self.assertEqual(waiting["native_request_marker"], self.request_marker(waiting["action"]["id"]))
+        self.assertFalse(Path(request["dispatch_binding_path"]).exists())
+        before = self.state.read_bytes()
+        self.collect(self.new_manifest(waiting["action"]["id"]), ok=False)
+        self.assertEqual(self.state.read_bytes(), before)
+        self.assertFalse(Path(request["result_manifest_path"]).exists())
+        self.assertFalse(Path(request["dispatch_binding_path"]).exists())
+
+    def test_prepare_new_bind_is_idempotent_and_enables_only_the_bound_native_turn(self):
+        request = self.prepare_new_request()
+        action = self.initialize(request)["action"]["id"]
+        record = self.binding(action)
+        path = self.write_json("binding-record.json", record)
+        expected = path.read_bytes()
+        before = self.state.read_bytes()
+        bound = self.cli("bind", "--record", path)
+        self.assertEqual((bound["status"], bound["action"]["id"]), ("WAITING_RECEIPT", action))
+        self.assertIs(bound["dispatch_required"], False)
+        self.assertEqual(bound["dispatch_state"], "BOUND")
+        self.assertEqual(self.state.read_bytes(), before)
+        self.assertEqual(Path(request["dispatch_binding_path"]).read_bytes(), expected)
+        self.assertEqual(self.cli("bind", "--record", path)["action"]["id"], action)
+        manifest = self.new_manifest(action)
+        manifest["native_turn_id"] = "another-turn"
+        manifest["native_receipt"] = self.native_receipt(self.executor, "another-turn", "another-native-turn.json")
+        self.collect(manifest, ok=False)
+        delivered = self.collect(self.new_manifest(action))
+        self.assertEqual((delivered["status"], delivered["step"]), ("WAITING_DECISION", "owner_acceptance"))
+        self.assertIs(delivered["business_accepted"], False)
+
+    def test_prepare_new_rejects_wrong_binding_identity_target_and_conflicting_bytes(self):
+        request = self.prepare_new_request()
+        action = self.initialize(request)["action"]["id"]
+        original = self.binding(action)
+        binding_path = Path(request["dispatch_binding_path"])
+        for case in ("action", "target", "native-target"):
+            with self.subTest(case=case):
+                record = deepcopy(original)
+                if case == "action":
+                    record["action_id"] = "foreign-action"
+                elif case == "target":
+                    record["executor"]["pane"] = "w1:p99"
+                else:
+                    dispatch = {"exit_code": 0, "stdout": json.dumps({"result": {"type": "agent_prompted",
+                        "agent": {"name": self.executor["name"], "pane_id": "w1:p99"}}})}
+                    record["dispatch_receipt"] = self.write_artifact("foreign-dispatch.json", self.json_bytes(dispatch))
+                self.cli("bind", "--record", self.write_json(f"bad-binding-{case}.json", record), ok=False)
+                self.assertFalse(binding_path.exists())
+                self.assertEqual(self.cli("status")["action"]["id"], action)
+        original_path = self.write_json("good-binding.json", original)
+        self.cli("bind", "--record", original_path)
+        preserved = binding_path.read_bytes()
+        conflict_path = self.root / "conflicting-binding.json"
+        conflict_path.write_bytes(original_path.read_bytes() + b"\n")
+        self.cli("bind", "--record", conflict_path, ok=False)
+        self.assertEqual(binding_path.read_bytes(), preserved)
+        self.assertEqual(self.cli("status")["action"]["id"], action)
+
+    def test_unbound_recovery_cannot_treat_an_existing_native_dispatch_as_unsent(self):
+        request = self.prepare_new_request()
+        # The original coordinator has a successful native receipt, but has not bound it yet.
+        self.assertTrue(Path(self.dispatch["path"]).is_file())
+        waiting = self.initialize(request)
+        action = waiting["action"]["id"]
+        for recovered in (self.initialize(request), self.cli("status")):
+            self.assertEqual(recovered["action"]["id"], action)
+            self.assertEqual(recovered["dispatch_state"], "UNBOUND_NEEDS_RECONCILIATION")
+            self.assertIsNone(recovered["dispatch_required"])
+            self.assertIn("reconcil", recovered["next_action"].lower())
+            self.assertNotIn("dispatches this prepared handoff once", recovered["next_action"])
+        self.assertFalse(Path(request["dispatch_binding_path"]).exists())
+
+    def test_prepare_new_rejects_same_contact_without_exact_task_action_request_markers(self):
+        request = self.prepare_new_request()
+        action = self.initialize(request)["action"]["id"]
+        original = self.binding(action)
+        for case, marker in (("missing", ""), ("wrong-action", self.request_marker("old-action"))):
+            with self.subTest(case=case):
+                record = deepcopy(original)
+                record["native_request"] = self.new_native_request(action, marker=marker, filename=f"request-{case}.json")
+                self.cli("bind", "--record", self.write_json(f"binding-{case}.json", record), ok=False)
+                self.assertFalse(Path(request["dispatch_binding_path"]).exists())
+        self.cli("bind", "--record", self.write_json("valid-marker-binding.json", original))
+        for case, marker in (("missing", ""), ("wrong-action", self.request_marker("old-action"))):
+            with self.subTest(result=case):
+                manifest = self.manifest(action)
+                manifest["native_receipt"] = self.native_receipt(self.executor, manifest["native_turn_id"],
+                    f"result-{case}.json", contact_ref=self.request["contact_ref"] + "\n" + marker)
+                self.collect(manifest, ok=False)
+                self.assertFalse(Path(request["result_manifest_path"]).exists())
+        self.assertEqual(self.collect(self.new_manifest(action))["status"], "WAITING_DECISION")
+
 
 if __name__ == "__main__":
     unittest.main()

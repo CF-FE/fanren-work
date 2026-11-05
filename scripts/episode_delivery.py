@@ -65,6 +65,18 @@ def save_exact(path, raw):
 
 def status_with_progress(state):
     result = run_workflow(state, "status")
+    prepared = result["outputs"]["prepare"]
+    result["dispatch_required"] = False
+    result["dispatch_state"] = "ADOPTED" if prepared["mode"] == "ADOPT_EXISTING" else "NOT_PENDING"
+    if prepared["mode"] == "PREPARE_NEW" and result["step"] == "native_handoff":
+        result["native_request_marker"] = "WORKFLOW_TASK_ID=" + result["task"] + "\nWORKFLOW_ACTION_ID=" + result["action"]["id"]
+        binding = Path(prepared["dispatch_binding_path"])
+        result["dispatch_required"] = None if not binding.exists() else False
+        result["dispatch_state"] = "UNBOUND_NEEDS_RECONCILIATION" if not binding.exists() else "BOUND"
+        if binding.exists():
+            raw = binding.read_bytes()
+            result["dispatch_binding"] = {"path": str(binding), "bytes": len(raw),
+                                          "sha256": hashlib.sha256(raw).hexdigest()}
     pointer = state.parent / (state.name + ".progress.json")
     if result["step"] == "native_handoff" and pointer.exists():
         progress = json.loads(pointer.read_bytes())
@@ -103,14 +115,27 @@ def execute(args):
         result_path = Path(data["result_manifest_path"]).resolve()
         if result_path.is_relative_to(ROOT):
             raise ValueError("private result manifest must be outside the repository")
+        if data.get("mode") == "PREPARE_NEW" and Path(data["dispatch_binding_path"]).resolve().is_relative_to(ROOT):
+            raise ValueError("private dispatch binding must be outside the repository")
         state.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        return run_workflow(state, "start", "--task", data["task_id"], "--input", args.input)
+        run_workflow(state, "start", "--task", data["task_id"], "--input", args.input)
+        return status_with_progress(state)
     if args.command == "status":
         return status_with_progress(state)
 
     run = load_run(state)
     functions = definition_functions()
     data = run["input"]
+    if args.command == "bind":
+        functions["require"](data.get("mode") == "PREPARE_NEW", "only a prepared new unit can bind a dispatch")
+        functions["require"](run["step"] == "native_handoff" and run["status"] in ("WAITING_RECEIPT", "UNKNOWN"),
+                             "not the pending native handoff")
+        raw = Path(args.record).read_bytes()
+        functions["validate_binding"](data, json.loads(raw), run["action"]["id"])
+        path = Path(data["dispatch_binding_path"]).resolve()
+        functions["require"](not path.is_relative_to(ROOT), "private dispatch binding must be outside the repository")
+        save_exact(path, raw)
+        return status_with_progress(state)
     if args.command == "collect":
         raw = Path(args.manifest).read_bytes()
         manifest = json.loads(raw)
@@ -158,7 +183,9 @@ def describe(result):
     result["disposition"] = {"accepted": "ACCEPTED", "revision_required": "REVISION_REQUIRED",
                              "held": "HELD"}.get(result["step"], "PENDING")
     if result["step"] == "native_handoff":
-        result["next_action"] = "Reconcile the existing native action; do not dispatch again."
+        result["next_action"] = ("Reconcile the original coordinator's intent ledger and native action first; no local binding does not prove no submission. Only after confirming no prior submission, record intent and submit this stable handoff once."
+                                 if result.get("dispatch_state") == "UNBOUND_NEEDS_RECONCILIATION" else
+                                 "Reconcile the existing native action; do not dispatch again.")
     elif result["status"] == "WAITING_DECISION":
         result["next_action"] = "Collect the incumbent owner's native decision for this unit."
     elif result["step"] in ("revision_required", "held"):
@@ -182,6 +209,8 @@ def main():
     collect.add_argument("--manifest", required=True)
     decide = commands.add_parser("decide")
     decide.add_argument("--record", required=True)
+    bind = commands.add_parser("bind")
+    bind.add_argument("--record", required=True)
     try:
         print(json.dumps(describe(execute(parser.parse_args())), ensure_ascii=False, sort_keys=True, allow_nan=False))
     except (ValueError, OSError, sqlite3.Error, KeyError, TypeError) as error:

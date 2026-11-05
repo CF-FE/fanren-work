@@ -12,12 +12,16 @@ flowchart TD
     project --> f0
     f1["episode-delivery"]
     project --> f1
+    domain["episode08-01-continuation"]
+    project --> domain
+    domain --> f1
 ```
 
 总览连线表示项目包含这些流程，不表示流程间存在依赖。
 
 - [batch02-metadata-handoff](#batch02-metadata-handoff)
 - [episode-delivery](#episode-delivery)
+- [episode08-01-continuation](episode08-01-continuation/README.md)
 <!-- workflow-index:end -->
 
 <!-- workflow:batch02-metadata-handoff:start -->
@@ -69,3 +73,5 @@ python3 scripts/episode_delivery.py --state "$STATE" decide --record "$OWNER_DEC
 
 程序处置完成和业务通过分列；`HELD`、`REVISION_REQUIRED` 均为未验收。新的实际制作沿负责人明确的依赖、范围和预算建立后继单元，保留原动作与成果引用。
 <!-- workflow:episode-delivery:end -->
+
+首集领域依赖和Q/R/P/C节点沿[领域定义](episode08-01-continuation/definition.json)及[运行接续说明](episode08-01-continuation/README.md)维护；实际单元在私有registry绑定固定源码与检查点，准备结果不代表整集验收。
