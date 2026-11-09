@@ -10,18 +10,17 @@ flowchart TD
     project["fanren-work workflows"]
     f0["batch02-metadata-handoff"]
     project --> f0
-    f1["episode-delivery"]
+    f1["decision-publication-audit"]
     project --> f1
-    domain["episode08-01-continuation"]
-    project --> domain
-    domain --> f1
+    f2["episode-delivery"]
+    project --> f2
 ```
 
 总览连线表示项目包含这些流程，不表示流程间存在依赖。
 
 - [batch02-metadata-handoff](#batch02-metadata-handoff)
+- [decision-publication-audit](#decision-publication-audit)
 - [episode-delivery](#episode-delivery)
-- [episode08-01-continuation](episode08-01-continuation/README.md)
 <!-- workflow-index:end -->
 
 <!-- workflow:batch02-metadata-handoff:start -->
@@ -75,3 +74,47 @@ python3 scripts/episode_delivery.py --state "$STATE" decide --record "$OWNER_DEC
 <!-- workflow:episode-delivery:end -->
 
 首集领域依赖和Q/R/P/C节点沿[领域定义](episode08-01-continuation/definition.json)及[运行接续说明](episode08-01-continuation/README.md)维护；实际单元在私有registry绑定固定源码与检查点，准备结果不代表整集验收。
+
+
+<!-- workflow:decision-publication-audit:start -->
+## decision-publication-audit
+
+```mermaid
+flowchart TD
+    n0["prepare — program: prepare"]
+    n1{"audit_route — decision: 独立核验凡人工作流自动发布接线时，哪种顺序最适合现有证据？"}
+    n2["receipt_first — program: record_order"]
+    n3["trace_first — program: record_order"]
+    n4[["native_handoff — handoff: 按原检查点选定的顺序独立核验工程证据。核查两组证据，交付工程采用报告和链路索引。只读工程证据并写私有报告。原协调员负责收件、自动发布回执和向负责人交验。"]]
+    verify["verify_result — program: verify_result"]
+    n5{"owner_acceptance — decision: 负责人根据原生执行、原产物和自动发布回执作出本工程单元的限定验收。"}
+    n6(["result: accepted"])
+    n7(["result: revision_required"])
+    n8(["result: held"])
+    n0 --> n1
+    n1 -->|"receipt_first"| n2
+    n1 -->|"trace_first"| n3
+    n2 --> n4
+    n3 --> n4
+    n4 --> verify
+    verify --> n5
+    n5 -->|"accept"| n6
+    n5 -->|"revise"| n7
+    n5 -->|"hold"| n8
+```
+
+- 用途与步骤：见上图；从 `prepare` 开始。
+- 输入：`--input` JSON；字段由本流程的 program 操作定义。
+- 输出：状态 JSON 的 `outputs`、`decisions`、`action` 和执行检查点。
+- 责任岗位、接手方及实时 Issue / Project：由项目在本块外补充；规格未定义。
+- 项目共同记忆：[阅读入口](../README.md)。
+- 源码：[definition.py](decision-publication-audit/definition.py) · [workflow.py](decision-publication-audit/workflow.py)。
+
+从项目根目录运行（检查点存放在仓库外私有绝对路径；替换原任务与输入）：
+
+```bash
+RUN="$(mktemp -d /tmp/project-workflow.XXXXXX)/run.sqlite3"
+python3 workflows/decision-publication-audit/workflow.py --state "$RUN" start --task TASK --input input.json
+python3 workflows/decision-publication-audit/workflow.py --state "$RUN" status
+```
+<!-- workflow:decision-publication-audit:end -->
