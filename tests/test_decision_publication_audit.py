@@ -99,17 +99,35 @@ class AuditBoundaryTests(unittest.TestCase):
             self.runner["import_record"](db, ROOT, self.definition, self.version, self.operations, args)
         self.assertEqual(self.cli(FLOW, "status")["status"], "RUNNABLE")
 
-    def test_rejects_unbacked_native_collection_and_wrong_model_turn(self):
-        self.cli(FLOW, "receive", "--action", self.action, "--status", "COLLECTED", "--evidence", "arbitrary",
-                 error="result.json")
+    def owner_record(self, result):
+        claim = {"task_id": "task", "unit_id": "unit", "choice": "accept", "result_sha256": result["sha256"]}
+        owner = self.artifact("owner", dict(claim, schema_version=1, owner=self.owner, native_turn_id="owner-turn",
+            native_receipt=self.native("owner-native", self.owner, "owner-turn", json.dumps(claim))))
+        (self.directory / (self.state.name + ".owner-" + owner["sha256"] + ".json")).write_bytes(
+            Path(owner["path"]).read_bytes())
+        return owner
+
+    def test_real_receipt_stays_collected_while_model_is_unconfirmed(self):
         result = self.result()
         with sqlite3.connect(self.state) as db:
             run = json.loads(db.execute("SELECT data FROM checkpoint").fetchone()[0])
             model = run["decision_integration"]["requests"]["model"]["model"]
             model.pop("execution_ref")
+            model["application_status"] = "unknown"
+            model["effective_model"] = {"configuration_status": "unconfirmed"}
             db.execute("UPDATE checkpoint SET data=?", (json.dumps(run),))
-        self.cli(FLOW, "receive", "--action", self.action, "--status", "COLLECTED",
-                 "--evidence", "sha256:" + result["sha256"], error="actual model readback is pending")
+        collected = self.cli(FLOW, "receive", "--action", self.action, "--status", "COLLECTED",
+                             "--evidence", "sha256:" + result["sha256"])
+        self.assertEqual(collected["step"], "owner_acceptance")
+        owner = self.owner_record(result)
+        self.cli(FLOW, "decide", "--step", "owner_acceptance", "--choice", "accept",
+                 "--evidence", "sha256:" + owner["sha256"], error="actual model configuration is unconfirmed")
+        self.assertEqual(self.cli(FLOW, "status")["receipts"], collected["receipts"])
+
+    def test_rejects_unbacked_native_collection_and_wrong_model_turn(self):
+        self.cli(FLOW, "receive", "--action", self.action, "--status", "COLLECTED", "--evidence", "arbitrary",
+                 error="result.json")
+        self.result()
         self.cli(ENTRY, "model-reconcile", "--request-id", "model", "--rollout", "unused",
                  "--turn-id", "preflight", error="another native turn")
         self.assertEqual(self.cli(FLOW, "status")["status"], "WAITING_RECEIPT")
@@ -133,11 +151,7 @@ class AuditBoundaryTests(unittest.TestCase):
         self.assertNotIn("decision_integration_version", status)
         self.cli(FLOW, "decide", "--step", "owner_acceptance", "--choice", "accept", "--evidence", "arbitrary",
                  error="invalid owner evidence")
-        claim = {"task_id": "task", "unit_id": "unit", "choice": "accept", "result_sha256": result["sha256"]}
-        owner = self.artifact("owner", dict(claim, schema_version=1, owner=self.owner, native_turn_id="owner-turn",
-            native_receipt=self.native("owner-native", self.owner, "owner-turn", json.dumps(claim))))
-        (self.directory / (self.state.name + ".owner-" + owner["sha256"] + ".json")).write_bytes(
-            Path(owner["path"]).read_bytes())
+        owner = self.owner_record(result)
         report = self.directory / "report"
         original_report = report.read_bytes()
         report.write_bytes(b'{"ok":0}')

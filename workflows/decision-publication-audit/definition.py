@@ -94,17 +94,20 @@ def verify_delivery(root, run, raw):
     source, action = delivery_source(run, unit_id)
     manifest = json.loads(raw)
     require(funcs["validate_result"](source, manifest, action), "an original delivered result is required")
+    verify_effective_model(run, unit_id, source["executor"]["thread"], manifest["native_turn_id"])
+
+
+def verify_effective_model(run, unit_id, thread, turn, *, confirmed=False):
     data = run["decision_integration"]
     model_request_id = data["launches"][unit_id]["request_id"]
     model = data["requests"][model_request_id]["model"]
     model_ref = model.get("execution_ref", {}).get("ids", {})
-    require(model_ref.get("turn_id") and model_ref.get("thread_id"),
-            "actual model readback is pending for this native turn")
-    require(model_ref["turn_id"] == manifest["native_turn_id"] and model_ref["thread_id"] == source["executor"]["thread"],
-            "effective model evidence belongs to another native turn")
-    require(model.get("effective_model", {}).get("configuration_status") == "confirmed"
-            and model.get("application_status") in {"applied", "not_applied"},
-            "actual model configuration is unconfirmed")
+    if model_ref.get("turn_id") not in (None, turn) or model_ref.get("thread_id") not in (None, thread):
+        raise ValueError("effective model evidence belongs to another native turn")
+    if confirmed and (model_ref.get("turn_id") != turn or model_ref.get("thread_id") != thread
+                      or model.get("effective_model", {}).get("configuration_status") != "confirmed"
+                      or model.get("application_status") not in {"applied", "not_applied"}):
+        raise ValueError("actual model configuration is unconfirmed for this native turn")
 
 
 def verify_collected(root, run):
@@ -122,7 +125,8 @@ def verify_collected(root, run):
     source = dict(data, executor=manifest["executor"], mode="PREPARE_NEW")
     funcs["require"](funcs["validate_result"](source, manifest, collected[0][0]),
                      "an original delivered result is required")
-    return {"result_sha256": digest}
+    return {"result_sha256": digest, "native_turn_id": manifest["native_turn_id"],
+            "executor_thread_id": manifest["executor"]["thread"]}
 
 
 def validate_record(root, run, args):
@@ -137,7 +141,11 @@ def validate_record(root, run, args):
         verify_delivery(root, run, raw)
     elif args.command == "decide" and args.step == "owner_acceptance":
         require(args.expected_state_digest is None, "owner acceptance requires the original owner entrypoint")
-        result_hash = verify_collected(root, run)["result_sha256"]
+        collected = verify_collected(root, run)
+        if args.choice == "accept":
+            verify_effective_model(run, decision_unit(run), collected["executor_thread_id"],
+                                   collected["native_turn_id"], confirmed=True)
+        result_hash = collected["result_sha256"]
         require(re.fullmatch(r"sha256:[a-f0-9]{64}", args.evidence), "invalid owner evidence reference")
         owner_hash = args.evidence.removeprefix("sha256:")
         state = Path(args.state).resolve()
