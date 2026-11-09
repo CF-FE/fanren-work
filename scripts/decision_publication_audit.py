@@ -87,6 +87,8 @@ def execute(args):
         return feedback("choose", "--recall", "skip", "--context", context_path)
 
     if args.command == "reconcile" and not Path(data["result_manifest_path"]).is_file():
+        require(not any(item["status"] == "COLLECTED" for history in run["receipts"].values() for item in history),
+                "original collected result manifest is missing")
         return feedback("reconcile")
 
     integration = run["decision_integration"]

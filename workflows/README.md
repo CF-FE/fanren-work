@@ -86,6 +86,7 @@ flowchart TD
     n2["receipt_first — program: record_order"]
     n3["trace_first — program: record_order"]
     n4[["native_handoff — handoff: 按原检查点选定的顺序独立核验工程证据。核查两组证据，交付工程采用报告和链路索引。只读工程证据并写私有报告。原协调员负责收件、自动发布回执和向负责人交验。"]]
+    verify["verify_result — program: verify_result"]
     n5{"owner_acceptance — decision: 负责人根据原生执行、原产物和自动发布回执作出本工程单元的限定验收。"}
     n6(["result: accepted"])
     n7(["result: revision_required"])
@@ -95,7 +96,8 @@ flowchart TD
     n1 -->|"trace_first"| n3
     n2 --> n4
     n3 --> n4
-    n4 --> n5
+    n4 --> verify
+    verify --> n5
     n5 -->|"accept"| n6
     n5 -->|"revise"| n7
     n5 -->|"hold"| n8

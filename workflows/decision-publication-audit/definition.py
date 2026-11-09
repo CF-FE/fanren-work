@@ -32,16 +32,20 @@ def prepare(root, run):
     data = run["input"]
     funcs["require"](data["project"] == run["project"] and data["task_id"] == run["task"],
                      "audit project or task mismatch")
-    for field in ("owner_plan", "decision_context", "runtime_inputs"):
-        funcs["artifact_bytes"](data[field])
-    for reference in data["inputs"]:
-        funcs["artifact_bytes"](reference)
+    verify_inputs(funcs, data)
     funcs["validate_identity"](data["acceptor"], owner=True)
     for key in ("dispatch_binding_path", "result_manifest_path"):
         path = Path(data[key])
         funcs["require"](path.is_absolute() and not path.resolve().is_relative_to(root),
                          "native evidence must be outside the repository")
     return {"unit_id": data["unit_id"], "source_files": sources}
+
+
+def verify_inputs(funcs, data):
+    for field in ("owner_plan", "decision_context", "runtime_inputs"):
+        funcs["artifact_bytes"](data[field])
+    for reference in data["inputs"]:
+        funcs["artifact_bytes"](reference)
 
 
 def record_order(root, run):
@@ -92,9 +96,33 @@ def verify_delivery(root, run, raw):
     require(funcs["validate_result"](source, manifest, action), "an original delivered result is required")
     data = run["decision_integration"]
     model_request_id = data["launches"][unit_id]["request_id"]
-    model_ref = data["requests"][model_request_id]["model"].get("execution_ref", {}).get("ids", {})
-    require(model_ref.get("turn_id", manifest["native_turn_id"]) == manifest["native_turn_id"],
+    model = data["requests"][model_request_id]["model"]
+    model_ref = model.get("execution_ref", {}).get("ids", {})
+    require(model_ref.get("turn_id") and model_ref.get("thread_id"),
+            "actual model readback is pending for this native turn")
+    require(model_ref["turn_id"] == manifest["native_turn_id"] and model_ref["thread_id"] == source["executor"]["thread"],
             "effective model evidence belongs to another native turn")
+    require(model.get("effective_model", {}).get("configuration_status") == "confirmed"
+            and model.get("application_status") in {"applied", "not_applied"},
+            "actual model configuration is unconfirmed")
+
+
+def verify_collected(root, run):
+    funcs = episode_validators(root)
+    verify_sources(root, run)
+    data = run["input"]
+    verify_inputs(funcs, data)
+    result = Path(data["result_manifest_path"]).read_bytes()
+    digest = sha256(result).hexdigest()
+    collected = [(action, row["evidence"]) for action, history in run["receipts"].items()
+                 for row in history if row["status"] == "COLLECTED"]
+    funcs["require"](len(collected) == 1 and collected[0][1] == "sha256:" + digest,
+                     "collection must reference this original result")
+    manifest = json.loads(result)
+    source = dict(data, executor=manifest["executor"], mode="PREPARE_NEW")
+    funcs["require"](funcs["validate_result"](source, manifest, collected[0][0]),
+                     "an original delivered result is required")
+    return {"result_sha256": digest}
 
 
 def validate_record(root, run, args):
@@ -109,12 +137,7 @@ def validate_record(root, run, args):
         verify_delivery(root, run, raw)
     elif args.command == "decide" and args.step == "owner_acceptance":
         require(args.expected_state_digest is None, "owner acceptance requires the original owner entrypoint")
-        source, action = delivery_source(run, decision_unit(run))
-        receipts = [row["evidence"] for row in run["receipts"][action] if row["status"] == "COLLECTED"]
-        result = Path(source["result_manifest_path"]).read_bytes()
-        result_hash = sha256(result).hexdigest()
-        require(receipts == ["sha256:" + result_hash], "collection must reference this original result")
-        verify_delivery(root, run, result)
+        result_hash = verify_collected(root, run)["result_sha256"]
         require(re.fullmatch(r"sha256:[a-f0-9]{64}", args.evidence), "invalid owner evidence reference")
         owner_hash = args.evidence.removeprefix("sha256:")
         state = Path(args.state).resolve()
@@ -123,7 +146,8 @@ def validate_record(root, run, args):
         verify_owner(root, run, owner_raw, result_hash, args.choice)
 
 
-OPERATIONS = {"prepare": prepare, "record_order": record_order, "validate_record": validate_record}
+OPERATIONS = {"prepare": prepare, "record_order": record_order, "verify_result": verify_collected,
+              "validate_record": validate_record}
 
 # Project-owned workflow definition. Edit this file to change future runs.
 DEFINITION = {'version': 1,
@@ -144,7 +168,8 @@ DEFINITION = {'version': 1,
                            'next': 'native_handoff'},
            'native_handoff': {'kind': 'handoff',
                               'instruction': '按原检查点选定的顺序独立核验工程证据。核查两组证据，交付工程采用报告和链路索引。只读工程证据并写私有报告。原协调员负责收件、自动发布回执和向负责人交验。',
-                              'next': 'owner_acceptance'},
+                              'next': 'verify_result'},
+           'verify_result': {'kind': 'program', 'operation': 'verify_result', 'next': 'owner_acceptance'},
            'owner_acceptance': {'kind': 'decision',
                                 'question': '负责人根据原生执行、原产物和自动发布回执作出本工程单元的限定验收。',
                                 'choices': {'accept': 'accepted',

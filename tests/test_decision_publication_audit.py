@@ -47,7 +47,9 @@ class AuditBoundaryTests(unittest.TestCase):
                     "route": {"request": {"preset": "workflow_next_action", "subject_ref": {"unit_id": "adapter"}},
                               "decision": {"candidate_id": "receipt_first", "evidence": "decision:route"}},
                     "model": {"request": {"preset": "role_model_selection", "subject_ref": {"unit_id": "adapter"}},
-                              "model": {"execution_ref": {"ids": {"turn_id": "turn"}}}},
+                              "model": {"execution_ref": {"ids": {"turn_id": "turn", "thread_id": "worker-thread"}},
+                                        "effective_model": {"configuration_status": "confirmed"},
+                                        "application_status": "not_applied"}},
                 },
                 "actions": {}, "results": {}, "events": {},
                 "launches": {"adapter": {"request_id": "model", "thread_id": "worker-thread",
@@ -100,7 +102,14 @@ class AuditBoundaryTests(unittest.TestCase):
     def test_rejects_unbacked_native_collection_and_wrong_model_turn(self):
         self.cli(FLOW, "receive", "--action", self.action, "--status", "COLLECTED", "--evidence", "arbitrary",
                  error="result.json")
-        self.result()
+        result = self.result()
+        with sqlite3.connect(self.state) as db:
+            run = json.loads(db.execute("SELECT data FROM checkpoint").fetchone()[0])
+            model = run["decision_integration"]["requests"]["model"]["model"]
+            model.pop("execution_ref")
+            db.execute("UPDATE checkpoint SET data=?", (json.dumps(run),))
+        self.cli(FLOW, "receive", "--action", self.action, "--status", "COLLECTED",
+                 "--evidence", "sha256:" + result["sha256"], error="actual model readback is pending")
         self.cli(ENTRY, "model-reconcile", "--request-id", "model", "--rollout", "unused",
                  "--turn-id", "preflight", error="another native turn")
         self.assertEqual(self.cli(FLOW, "status")["status"], "WAITING_RECEIPT")
@@ -109,7 +118,16 @@ class AuditBoundaryTests(unittest.TestCase):
         result = self.result()
         self.commit_only(command="receive", status="COLLECTED", action=self.action,
                          evidence="sha256:" + result["sha256"])
+        result_path = Path(result["path"])
+        original_result = result_path.read_bytes()
+        result_path.unlink()
+        self.cli(ENTRY, "reconcile", error="result.json")
+        self.assertEqual(self.cli(FLOW, "status")["step"], "verify_result")
+        result_path.write_bytes(original_result)
         self.assertEqual(self.cli(ENTRY, "reconcile")["step"], "owner_acceptance")
+        result_path.unlink()
+        self.cli(ENTRY, "reconcile", error="original collected result manifest is missing")
+        result_path.write_bytes(original_result)
         status = self.cli(FLOW, "status")
         self.assertEqual(status["decision_evaluation"], "owner_only")
         self.assertNotIn("decision_integration_version", status)
