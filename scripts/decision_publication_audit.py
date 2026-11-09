@@ -5,6 +5,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+import runpy
 import sqlite3
 import subprocess
 import sys
@@ -25,9 +26,8 @@ def load_run(workflow, state, env):
     with closing(sqlite3.connect(state.as_uri() + "?mode=ro", uri=True)) as db:
         row = db.execute("SELECT data FROM checkpoint WHERE id=1").fetchone()
     run = json.loads(row[0])
-    if (run["project"] != "fanren-work" or run["workflow"] != "decision-publication-audit"
-            or run["input"]["source_files"]["scripts/decision_publication_audit.py"] != sha256(Path(__file__).read_bytes()).hexdigest()):
-        raise ValueError("wrong project workflow or project entrypoint revision")
+    if run["project"] != "fanren-work" or run["workflow"] != "decision-publication-audit":
+        raise ValueError("wrong project workflow")
     return run
 
 
@@ -38,10 +38,12 @@ def execute(args):
         raise ValueError("use the original audit workflow and a private checkpoint")
     env = {key: value for key, value in os.environ.items() if not key.startswith("DECISION_")}
     run = load_run(workflow, state, env)
+    definition = runpy.run_path(str(workflow.with_name("definition.py")))
+    definition["verify_sources"](ROOT, run)
+    if args.command == "reconcile" and run["status"] == "RUNNABLE":
+        invoke(workflow, "--state", state, "resume", env=env)
+        run = load_run(workflow, state, env)
     data = run["input"]
-    for reference, digest in data["source_files"].items():
-        if sha256((ROOT / reference).read_bytes()).hexdigest() != digest:
-            raise ValueError("restore the original audit sources")
     functions = definition_functions()
     require = functions["require"]
     runtime = json.loads(functions["artifact_bytes"](data["runtime_inputs"]))
@@ -86,31 +88,28 @@ def execute(args):
         return feedback("reconcile")
 
     integration = run["decision_integration"]
-    route = run["decisions"]["audit_route"]
-    matches = [entry["request"]["subject_ref"]["unit_id"] for entry in integration["requests"].values()
-               if entry["request"]["preset"] == "workflow_next_action" and entry.get("decision")
-               and route == {"choice": entry["decision"]["candidate_id"], "evidence": entry["decision"]["evidence"]}]
-    require(len(matches) == 1, "no unique adopted operational choice")
-    decision_unit = matches[0]
+    decision_unit = definition["decision_unit"](run)
     if args.command == "model-apply":
         require(run["step"] == "native_handoff" and run["status"] == "WAITING_RECEIPT",
                 "model selection requires the original pending handoff")
         return call("herdr_model_selection.py", "apply", "--unit-id", decision_unit,
                     "--binding", args.binding, "--selection", args.selection)
-    if args.command == "model-reconcile":
-        return call("herdr_model_selection.py", "reconcile", "--request-id", args.request_id,
-                    "--rollout", args.rollout, "--turn-id", args.turn_id)
-
-    launch = integration["launches"][decision_unit]
-    target = launch["target"]
-    executor = {"name": target["agent"], "session": target["session"], "pane": target["pane_id"],
-                "thread": launch["thread_id"]}
-    source = dict(data, executor=executor, mode="PREPARE_NEW")
-    action = integration["actions"]["native_handoff"]["id"]
+    source, action = definition["delivery_source"](run, decision_unit)
     binding = Path(data["dispatch_binding_path"]).resolve()
     manifest_path = Path(data["result_manifest_path"]).resolve()
     require(not binding.is_relative_to(ROOT) and not manifest_path.is_relative_to(ROOT),
             "native receipts must stay outside the repository")
+
+    if args.command == "model-reconcile":
+        launch = integration["launches"][decision_unit]
+        require(args.request_id == launch["request_id"], "model request is for another original launch")
+        request = integration["requests"][args.request_id]["request"]
+        require(request["preset"] == "role_model_selection" and request["subject_ref"]["unit_id"] == decision_unit,
+                "model request is for another original unit")
+        native_turn = functions["validate_binding"](source, json.loads(binding.read_bytes()), action)
+        require(args.turn_id == native_turn, "model readback is for another native turn")
+        return call("herdr_model_selection.py", "reconcile", "--request-id", args.request_id,
+                    "--rollout", args.rollout, "--turn-id", args.turn_id)
 
     if args.command == "bind":
         raw = args.record.read_bytes()
@@ -121,12 +120,12 @@ def execute(args):
     raw = (args.record if args.command == "collect" else manifest_path).read_bytes()
     result_hash = sha256(raw).hexdigest()
     result_ref = "sha256:" + result_hash
-    require(functions["validate_result"](source, json.loads(raw), action), "an original delivered result is required")
+    definition["verify_delivery"](ROOT, run, raw)
     if args.command == "collect":
         save_exact(manifest_path, raw)
 
     collected = [item["evidence"] for item in run["receipts"].get(action, []) if item["status"] == "COLLECTED"]
-    if not collected and args.command in {"collect", "reconcile"}:
+    if args.command in {"collect", "reconcile"}:
         invoke(workflow, "--state", state, "receive", "--action", action, "--status", "COLLECTED",
                "--evidence", result_ref, env=env)
     else:
@@ -136,19 +135,14 @@ def execute(args):
     if args.command == "decide":
         raw_owner = args.record.read_bytes()
         owner = json.loads(raw_owner)
-        require(owner["schema_version"] == 1 and owner["task_id"] == data["task_id"]
-                and owner["unit_id"] == data["unit_id"] and owner["result_sha256"] == result_hash,
-                "owner receipt must refer to this original result")
-        require(owner["owner"] == data["acceptor"] and owner["choice"] in ("accept", "revise", "hold"),
-                "owner authority or choice mismatch")
-        functions["verify_owner_claim"](owner, data["acceptor"])
+        require(owner["choice"] in ("accept", "revise", "hold"), "invalid owner choice")
+        definition["verify_owner"](ROOT, run, raw_owner, result_hash, owner["choice"])
         owner_hash = sha256(raw_owner).hexdigest()
         accepted = {"choice": owner["choice"], "evidence": "sha256:" + owner_hash}
         require(owner_decision is None or owner_decision == accepted, "owner decision already recorded")
         save_exact(state.parent / (state.name + ".owner-" + owner_hash + ".json"), raw_owner)
-        if owner_decision is None:
-            invoke(workflow, "--state", state, "decide", "--step", "owner_acceptance", "--choice",
-                   accepted["choice"], "--evidence", accepted["evidence"], env=env)
+        invoke(workflow, "--state", state, "decide", "--step", "owner_acceptance", "--choice",
+               accepted["choice"], "--evidence", accepted["evidence"], env=env)
         owner_decision = accepted
 
     native = invoke(workflow, "--state", state, "status", env=env)

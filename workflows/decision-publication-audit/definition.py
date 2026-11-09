@@ -1,17 +1,34 @@
 # coding: utf-8
+"""Project-owned audit boundaries and branch operations."""
 from hashlib import sha256
+import json
 from pathlib import Path
+import re
 import sys
 
 
-def prepare(root, run):
+def episode_validators(root):
     scripts = root / "scripts"
     sys.path.insert(0, str(scripts))
     try:
         from episode_delivery import definition_functions
     finally:
         sys.path.remove(str(scripts))
-    funcs = definition_functions()
+    return definition_functions()
+
+
+def verify_sources(root, run):
+    files = ("scripts/decision_publication_audit.py", "scripts/episode_delivery.py",
+             "workflows/episode-delivery/definition.py")
+    actual = {path: sha256((root / path).read_bytes()).hexdigest() for path in files}
+    if actual != run["input"]["source_files"]:
+        raise ValueError("restore the original audit sources")
+    return actual
+
+
+def prepare(root, run):
+    sources = verify_sources(root, run)
+    funcs = episode_validators(root)
     data = run["input"]
     funcs["require"](data["project"] == run["project"] and data["task_id"] == run["task"],
                      "audit project or task mismatch")
@@ -24,12 +41,7 @@ def prepare(root, run):
         path = Path(data[key])
         funcs["require"](path.is_absolute() and not path.resolve().is_relative_to(root),
                          "native evidence must be outside the repository")
-    entrypoint = scripts / "decision_publication_audit.py"
-    deps = (entrypoint, scripts / "episode_delivery.py",
-            root / "workflows/episode-delivery/definition.py")
-    actual = {str(path.relative_to(root)): sha256(path.read_bytes()).hexdigest() for path in deps}
-    funcs["require"](actual == data["source_files"], "restore the original audit sources")
-    return {"unit_id": data["unit_id"], "source_files": actual}
+    return {"unit_id": data["unit_id"], "source_files": sources}
 
 
 def record_order(root, run):
@@ -39,8 +51,77 @@ def record_order(root, run):
     return {"audit_order": order}
 
 
-OPERATIONS = {"prepare": prepare, "record_order": record_order}
+def decision_unit(run):
+    route = run["decisions"]["audit_route"]
+    matches = [entry["request"]["subject_ref"]["unit_id"]
+               for entry in run["decision_integration"]["requests"].values()
+               if entry["request"]["preset"] == "workflow_next_action" and entry.get("decision")
+               and route == {"choice": entry["decision"]["candidate_id"], "evidence": entry["decision"]["evidence"]}]
+    if len(matches) != 1:
+        raise ValueError("no unique adopted operational choice")
+    return matches[0]
 
+
+def delivery_source(run, unit_id):
+    data = run["decision_integration"]
+    launch = data["launches"][unit_id]
+    target = launch["target"]
+    executor = {"name": target["agent"], "session": target["session"], "pane": target["pane_id"],
+                "thread": launch["thread_id"]}
+    return dict(run["input"], executor=executor, mode="PREPARE_NEW"), data["actions"]["native_handoff"]["id"]
+
+
+def verify_owner(root, run, raw_owner, result_hash, choice):
+    funcs = episode_validators(root)
+    data = run["input"]
+    owner = json.loads(raw_owner)
+    funcs["require"](owner["schema_version"] == 1 and owner["task_id"] == data["task_id"]
+                     and owner["unit_id"] == data["unit_id"] and owner["result_sha256"] == result_hash,
+                     "owner receipt must refer to this original result")
+    funcs["require"](owner["owner"] == data["acceptor"] and owner["choice"] == choice,
+                     "owner authority or choice mismatch")
+    funcs["verify_owner_claim"](owner, data["acceptor"])
+
+
+def verify_delivery(root, run, raw):
+    funcs = episode_validators(root)
+    require = funcs["require"]
+    unit_id = decision_unit(run)
+    source, action = delivery_source(run, unit_id)
+    manifest = json.loads(raw)
+    require(funcs["validate_result"](source, manifest, action), "an original delivered result is required")
+    data = run["decision_integration"]
+    model_request_id = data["launches"][unit_id]["request_id"]
+    model_ref = data["requests"][model_request_id]["model"].get("execution_ref", {}).get("ids", {})
+    require(model_ref.get("turn_id", manifest["native_turn_id"]) == manifest["native_turn_id"],
+            "effective model evidence belongs to another native turn")
+
+
+def validate_record(root, run, args):
+    """Validate original evidence inside the runner before its state transition commits."""
+    verify_sources(root, run)
+    require = episode_validators(root)["require"]
+    if args.command == "receive" and args.status == "COLLECTED":
+        source, action = delivery_source(run, decision_unit(run))
+        raw = Path(source["result_manifest_path"]).read_bytes()
+        require(args.action == action and args.evidence == "sha256:" + sha256(raw).hexdigest(),
+                "collection must reference this original result")
+        verify_delivery(root, run, raw)
+    elif args.command == "decide" and args.step == "owner_acceptance":
+        require(args.expected_state_digest is None, "owner acceptance requires the original owner entrypoint")
+        source, action = delivery_source(run, decision_unit(run))
+        receipts = [row["evidence"] for row in run["receipts"][action] if row["status"] == "COLLECTED"]
+        result_hash = sha256(Path(source["result_manifest_path"]).read_bytes()).hexdigest()
+        require(receipts == ["sha256:" + result_hash], "collection must reference this original result")
+        require(re.fullmatch(r"sha256:[a-f0-9]{64}", args.evidence), "invalid owner evidence reference")
+        owner_hash = args.evidence.removeprefix("sha256:")
+        state = Path(args.state).resolve()
+        owner_raw = (state.parent / (state.name + ".owner-" + owner_hash + ".json")).read_bytes()
+        require(sha256(owner_raw).hexdigest() == owner_hash, "stored owner receipt changed")
+        verify_owner(root, run, owner_raw, result_hash, args.choice)
+
+
+OPERATIONS = {"prepare": prepare, "record_order": record_order, "validate_record": validate_record}
 
 # Project-owned workflow definition. Edit this file to change future runs.
 DEFINITION = {'version': 1,

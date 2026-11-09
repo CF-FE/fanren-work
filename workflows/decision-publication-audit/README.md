@@ -22,12 +22,12 @@ python3 scripts/decision_publication_audit.py --workflow "$FLOW" --state "$STATE
 python3 scripts/decision_publication_audit.py --workflow "$FLOW" --state "$STATE" status
 ```
 
-原选择响应丢失时，对已冻结的 `request_id` 使用 `choose --request-id`。原协调员核对当前手递动作、宿主候选及空槽位，再用 `model-apply --binding "$BINDING" --selection "$SELECTION"` 在原生 Herdr 创建。动态选型需要原创建者确认至少两组实际可用的组合。此试点的验收要求有实际动态选型，候选不足时原协调员回报原单。模型回读使用 `model-reconcile --request-id … --rollout … --turn-id …`，以原生回合核对推荐、启动与实际生效配置。
+原选择响应丢失时，对已冻结的 `request_id` 使用 `choose --request-id`。原协调员核对当前手递动作、宿主候选及空槽位，再用 `model-apply --binding "$BINDING" --selection "$SELECTION"` 在原生 Herdr 创建。动态选型需要原创建者确认至少两组实际可用的组合。此试点的验收要求有实际动态选型，候选不足时原协调员回报原单。启动回应未知时，沿同一绑定重入 `model-apply` 核原生线程。绑定原生派发后，使用 `model-reconcile --request-id … --rollout … --turn-id …` 对绑定的同一业务回合核对推荐、启动与实际生效配置。
 
 唯一派发后，协调员用 `bind --record "$NATIVE_BINDING"` 核对派发回执和原生请求。绑定与交付清单沿用 [现有原生收件合同](../episode-delivery/README.md)。原生工作者冻结私有工程报告和索引，索引引用原生执行证据。回调和验收发生后产生的证明另存，原报告保持原摘要。
 
 ## 自动发布和继续对账
 
-协调员用 `collect --record "$RESULT"` 导入原生终稿，提交工作流原收件并触发原结果发布。已回收的首个结果质量为 `pending`。取得负责人的原生结论后，用 `decide --record "$OWNER_DECISION"` 导入同一成果摘要对应的限定验收，自动触发同一事件的质量修订。负责人回复应包含唯一的 `{task_id, unit_id, result_sha256, choice}` JSON 结论。验收只覆盖本工程单元。
+协调员用 `collect --record "$RESULT"` 导入原生终稿，提交工作流原收件并触发原结果发布。已回收的首个结果质量为 `pending`。取得负责人的原生结论后，用 `decide --record "$OWNER_DECISION"` 导入同一成果摘要对应的限定验收，自动触发同一事件的质量修订。运行器在提交收件及验收前验证对应的原生证据。负责人回复应包含唯一的 `{task_id, unit_id, result_sha256, choice}` JSON 结论。验收只覆盖本工程单元。
 
-只要反馈中有 `pending`、网络失败或回执尚未确认，原协调员沿[原生跟进待办](https://github.com/CF-FE/herdr-4-codexcloud/blob/main/docs/project-coordinator.md#native-followups)登记同任务及私有检查点。原观察器提醒后运行本入口的 `reconcile`，从已提交的原收件和负责人记录重建缺失的反馈并按原键补传。工作流 `FINISHED` 后仍执行这项检查。未回收时更新同一待办的复查时间，读回原事件的各修订且待回传清零后结单。程序可中断后从同检查点恢复。对账不创建岗位或重新派发工作。
+只要反馈中有 `pending`、网络失败或回执尚未确认，原协调员沿[原生跟进待办](https://github.com/CF-FE/herdr-4-codexcloud/blob/main/docs/project-coordinator.md#native-followups)登记同任务及私有检查点。原观察器提醒后运行本入口的 `reconcile`，从已提交的原收件和负责人记录重建缺失的反馈并按原键补传。工作流 `FINISHED` 后仍执行这项检查。未回收时更新同一待办的复查时间，读回原事件的各修订且待回传清零后结单。程序可中断后从同检查点恢复，已提交但未推进的转换会继续到原下一步。对账不创建岗位或重新派发工作。

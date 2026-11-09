@@ -201,7 +201,7 @@ def start(db, root, definition, version, operations, task, data):
             save_run(db, run)
 
 
-def import_record(db, definition, version, args):
+def import_record(db, root, definition, version, operations, args):
     require(args.evidence.strip(), "empty evidence reference")
     with db:
         db.execute("BEGIN IMMEDIATE")
@@ -217,6 +217,7 @@ def import_record(db, definition, version, args):
             require(run["status"] == "WAITING_DECISION" and run["step"] == args.step, "not the pending decision")
             choices = run["decision"]["choices"]
             require(args.choice in choices, "choice not allowed")
+            operations["validate_record"](root, run, args)
             run["decisions"][args.step] = decision
             next_step(run, definition, choices[args.choice])
         else:
@@ -227,6 +228,7 @@ def import_record(db, definition, version, args):
             require(run["status"] in ("WAITING_RECEIPT", "UNKNOWN") and run["action"]["id"] == args.action,
                     "action does not match the pending handoff")
             require(all(old["status"] != args.status for old in history), "conflicting receipt evidence")
+            operations["validate_record"](root, run, args)
             run["receipts"].setdefault(args.action, []).append(record)
             if args.status == "UNKNOWN":
                 run["status"] = "UNKNOWN"
@@ -259,7 +261,7 @@ def execute(args):
         if args.command == "start":
             start(db, root, definition, version, operations, args.task, data)
         elif args.command in ("decide", "receive"):
-            import_record(db, definition, version, args)
+            import_record(db, root, definition, version, operations, args)
         return advance(db, root, definition, version, operations)
 
 
