@@ -110,6 +110,9 @@ class AuditBoundaryTests(unittest.TestCase):
         self.commit_only(command="receive", status="COLLECTED", action=self.action,
                          evidence="sha256:" + result["sha256"])
         self.assertEqual(self.cli(ENTRY, "reconcile")["step"], "owner_acceptance")
+        status = self.cli(FLOW, "status")
+        self.assertEqual(status["decision_evaluation"], "owner_only")
+        self.assertNotIn("decision_integration_version", status)
         self.cli(FLOW, "decide", "--step", "owner_acceptance", "--choice", "accept", "--evidence", "arbitrary",
                  error="invalid owner evidence")
         claim = {"task_id": "task", "unit_id": "unit", "choice": "accept", "result_sha256": result["sha256"]}
@@ -117,6 +120,13 @@ class AuditBoundaryTests(unittest.TestCase):
             native_receipt=self.native("owner-native", self.owner, "owner-turn", json.dumps(claim))))
         (self.directory / (self.state.name + ".owner-" + owner["sha256"] + ".json")).write_bytes(
             Path(owner["path"]).read_bytes())
+        report = self.directory / "report"
+        original_report = report.read_bytes()
+        report.write_bytes(b'{"ok":0}')
+        self.cli(FLOW, "decide", "--step", "owner_acceptance", "--choice", "accept",
+                 "--evidence", "sha256:" + owner["sha256"], error="artifact")
+        self.assertEqual(self.cli(FLOW, "status")["step"], "owner_acceptance")
+        report.write_bytes(original_report)
         self.commit_only(command="decide", step="owner_acceptance", choice="accept",
                          expected_state_digest=None, evidence="sha256:" + owner["sha256"])
         self.assertEqual(self.cli(ENTRY, "reconcile")["status"], "FINISHED")

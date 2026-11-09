@@ -77,6 +77,8 @@ def execute(args):
             require(entry["request"]["preset"] == "workflow_next_action"
                     and entry["request"]["subject_ref"]["step"] == "audit_route",
                     "only the original audit route request may be recovered")
+            if run["step"] == "owner_acceptance":
+                return feedback("get", "--request-id", args.request_id)
             return feedback("choose", "--request-id", args.request_id)
         require(run["step"] == "audit_route" and run["status"] == "WAITING_DECISION",
                 "only the owner-released operational audit route may use Decision Service")

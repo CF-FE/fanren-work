@@ -111,8 +111,10 @@ def validate_record(root, run, args):
         require(args.expected_state_digest is None, "owner acceptance requires the original owner entrypoint")
         source, action = delivery_source(run, decision_unit(run))
         receipts = [row["evidence"] for row in run["receipts"][action] if row["status"] == "COLLECTED"]
-        result_hash = sha256(Path(source["result_manifest_path"]).read_bytes()).hexdigest()
+        result = Path(source["result_manifest_path"]).read_bytes()
+        result_hash = sha256(result).hexdigest()
         require(receipts == ["sha256:" + result_hash], "collection must reference this original result")
+        verify_delivery(root, run, result)
         require(re.fullmatch(r"sha256:[a-f0-9]{64}", args.evidence), "invalid owner evidence reference")
         owner_hash = args.evidence.removeprefix("sha256:")
         state = Path(args.state).resolve()

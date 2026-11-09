@@ -287,7 +287,11 @@ def main():
     try:
         run = execute(parser.parse_args())
         result = {k: v for k, v in run.items() if k not in ("input", "completed_steps", "decision_integration")}
-        result["decision_integration_version"] = 1
+        if run["step"] == "owner_acceptance":
+            # The general adapter checks this opt-in capability before freezing or evaluating.
+            result["decision_evaluation"] = "owner_only"
+        else:
+            result["decision_integration_version"] = 1
         if result["action"]:
             result["action"] = {**result["action"], "outputs": run["outputs"], "decisions": run["decisions"]}
         print(encoded(result))
