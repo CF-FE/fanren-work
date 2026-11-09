@@ -13,6 +13,14 @@
 - `dispatch_binding_path` 和 `result_manifest_path` 是本单私有的唯一落点。
 - `runtime_inputs` 绑定同一任务、单元、已复核的 Herdr consumer 发布位置和解释器、Decision Outcome Publisher 解释器，以及仅指向私有配置的 `config_ref`。私有配置不进入工作流或 Git。
 
+新工作单元从仓库根目录读取 Mac 上已启用的项目绑定。命令生成私有运行输入，并输出可直接填入工作流 input 的 `runtime_inputs` 文件引用。协调员须使用原任务和工作单元的 ID。
+
+```sh
+python3 -B scripts/freeze_decision_publication_runtime.py --task "$TASK" --unit "$UNIT" --output "$RUNTIME_INPUTS"
+```
+
+项目绑定位于 `~/Library/Application Support/ProjectWorkflowTools/developer-inputs/fanren-work/current.json`。冻结文件保存固定发布路径。恢复已启动工作流时，使用检查点绑定的原输入及摘要。
+
 从本项目根目录执行，下列命令使用协调员冻结的输入和路径。
 
 ```sh
