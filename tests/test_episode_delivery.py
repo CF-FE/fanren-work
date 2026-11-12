@@ -231,6 +231,25 @@ class EpisodeDeliveryTests(unittest.TestCase):
         self.assertEqual((accepted["status"], accepted["step"]), ("FINISHED", "accepted"))
         self.assertEqual(self.decide(record)["status"], "FINISHED")
 
+    def test_route_only_report_without_an_entry_can_be_collected_and_accepted(self):
+        self.request.update(task_id="fanren-issue2-qa-route-1", unit_id="qa-route",
+                            scope={"mode": "route_only"}, deliverable_kind="qa-route-report",
+                            deliverables=["qa-route-report"])
+        action = self.initialize()["action"]["id"]
+        manifest = self.manifest(action)
+        manifest["summary"] = "The route was checked. No listening entry was available."
+        manifest["artifacts"] = [
+            self.write_artifact("qa-route-report.json", self.json_bytes({"outcome": "NO_ENTRY"}))
+        ]
+
+        collected = self.collect(manifest)
+        self.assertEqual((collected["status"], collected["step"]), ("WAITING_DECISION", "owner_acceptance"))
+        self.assertFalse(collected["business_accepted"])
+        self.assertEqual(collected["outputs"]["verify_result"]["artifacts"], manifest["artifacts"])
+        accepted = self.decide(self.decision())
+        self.assertEqual(accepted["disposition"], "ACCEPTED")
+        self.assertTrue(accepted["business_accepted"])
+
     def test_wrong_owner_identity_result_or_native_reply_cannot_decide(self):
         action = self.initialize()["action"]["id"]
         self.collect(self.manifest(action))
