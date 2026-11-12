@@ -200,7 +200,6 @@ class OfflineQaEvidenceTests(unittest.TestCase):
         audit, ref = self.add_audited_clip()
         matched = audit["rows"][0]
         for field, conflict in (
-            ("wave", {**matched["wave"], "path": r"C:\offline-fixtures\other.wav"}),
             ("actual_request_audio_bytes", 129),
             ("actual_request_audio_sha256", "d" * 64),
         ):
@@ -218,8 +217,10 @@ class OfflineQaEvidenceTests(unittest.TestCase):
         metadata_ref.update(self.write_source("037.input.json", metadata))
         self.assertIn("audio identity mismatch (sha256)", self.cli(ok=False))
 
-    def test_frozen_audio_metadata_matches_without_reading_wav(self):
-        self.add_audited_clip()
+    def test_frozen_audio_metadata_matches_across_path_spellings_without_reading_wav(self):
+        audit, ref = self.add_audited_clip()
+        audit["rows"][0]["wave"]["path"] = "c:/offline-fixtures/synthetic.wav"
+        ref.update(self.write_source("FINAL-NATIVE-AUDIT.json", audit))
         self.assertEqual(self.cli()["clips"][0]["audio_metadata_identity"], "MATCHED")
 
     def test_incomplete_frozen_audio_metadata_is_unknown(self):

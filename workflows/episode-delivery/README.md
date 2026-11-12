@@ -121,7 +121,7 @@ python3 -B scripts/offline_qa_evidence.py \
 ```
 
 - 每个序号对应四份白名单工件。示例使用 `037.input.json`、`037.response.raw.json`、`037.sealed.json` 和 `037.comparison.json`。元数据、封存和比较记录各自绑定源任务、动作、轮次与片段。封存记录绑定响应 SHA 和请求 SHA。请求 SHA 只做记录间核对。 核心封存关联缺字段或摘要格式无效时，`seal_binding` 为 UNKNOWN。位置和文本字段仍保留为原响应诊断。
-- 可按冻结白名单加入 `FINAL-NATIVE-AUDIT.json`、`TARGETED-REVIEW-RESULT.json`、`targeted_review.py` 和 `final_audit.py`。同轮报告存在时，逐片比较元数据与报告的音频路径、字节数和 SHA-256 声明。明确冲突 STOP，字段缺失或格式无效时 `audio_metadata_identity` 为 UNKNOWN。路径只作字面比较。若白名单包含旧质量报告，合同须有 `history` 对象，提供报告文件名 `file`、旧 `task_ref`、旧 `attempt`，以及可选的 `retain_ordinals` 数组，用于保留指定历史行的原顺序标记。
+- 可按冻结白名单加入 `FINAL-NATIVE-AUDIT.json`、`TARGETED-REVIEW-RESULT.json`、`targeted_review.py` 和 `final_audit.py`。同轮报告存在时，逐片比较元数据与报告的音频字节数和 SHA-256 声明。明确冲突 STOP，字段缺失或格式无效时 `audio_metadata_identity` 为 UNKNOWN。原音频路径可沿源工件引用追溯。若白名单包含旧质量报告，合同须有 `history` 对象，提供报告文件名 `file`、旧 `task_ref`、旧 `attempt`，以及可选的 `retain_ordinals` 数组，用于保留指定历史行的原顺序标记。
 - 响应按封存的单选项文本协议读取。全文检查独立的 `【完整转写】` 段。尾句要求可按片段设置，引用比较记录中的揭稿文字，只在 `【结尾观察】` 段检查字面出现。字面命中后的观察充分性仍为 UNKNOWN。
 - `【位置与依据】` 中识别明确的起止对、`从…秒开始，到…秒结束` 区间和明确标记的点。片语标记的点须与同一响应观察或转写文字关联。范围比较用十进制及封存时长，原时码声明保存在 JSON。超界仍保留原值。合规只说明算术范围，真实定位为 UNKNOWN。
 - 原件缺失、哈希不符或明确身份冲突时以 `STOP` 和退出码 2 结束。无法可靠解析的原件或字段保留诊断与引用，相应证据为 UNKNOWN。定向与历史 finish 分列。COMPARED 记录处理阶段，音质始终为 UNKNOWN。

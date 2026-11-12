@@ -168,7 +168,6 @@ def check_audio_identity(audio, source, companion_rows, gaps):
     audio = audio if isinstance(audio, dict) else {}
     complete = True
     for field, valid in (
-        ("path", text),
         ("bytes", lambda value: type(value) is int and value >= 0),
         ("sha256", is_sha256),
     ):
@@ -176,9 +175,8 @@ def check_audio_identity(audio, source, companion_rows, gaps):
         for label, row in companion_rows:
             wave = row.get("wave")
             declarations.append((f"{label}.wave.{field}", wave.get(field) if isinstance(wave, dict) else None))
-            if field != "path":
-                key = f"actual_request_audio_{field}"
-                declarations.append((f"{label}.{key}", row.get(key)))
+            key = f"actual_request_audio_{field}"
+            declarations.append((f"{label}.{key}", row.get(key)))
         known = {}
         for label, value in declarations:
             if valid(value):
