@@ -54,6 +54,10 @@ def text(value):
     return isinstance(value, str) and bool(value.strip()) and not re.search(r"[\ud800-\udfff]", value)
 
 
+def is_sha256(value):
+    return isinstance(value, str) and re.fullmatch(SHA, value) is not None
+
+
 def json_bytes(value):
     # Decimal values retain their source precision in derived numeric strings.
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2, default=str,
@@ -63,7 +67,7 @@ def json_bytes(value):
 def load_archive(input_path, input_sha, contract_path, read_artifact, validate_executor):
     require(input_path.suffix == contract_path.suffix == ".json", "input and contract must be JSON files")
     input_raw = input_path.read_bytes()
-    require(re.fullmatch(SHA, input_sha) and digest(input_raw) == input_sha, "frozen input SHA-256 mismatch")
+    require(is_sha256(input_sha) and digest(input_raw) == input_sha, "frozen input SHA-256 mismatch")
     released = object_from(input_raw)
     require(released.get("schema_version") == 1 and released.get("project") == "fanren-work",
             "frozen input identity mismatch")
@@ -157,6 +161,36 @@ def row_by_ordinal(report, field, ordinal, label, gaps, clip_id=None):
     return matches[0]
 
 
+def check_audio_identity(audio, source, companion_rows, gaps):
+    """Compare recorded audio identities without opening any referenced audio."""
+    if not companion_rows:
+        return "UNKNOWN"
+    audio = audio if isinstance(audio, dict) else {}
+    complete = True
+    for field, valid in (
+        ("path", text),
+        ("bytes", lambda value: type(value) is int and value >= 0),
+        ("sha256", is_sha256),
+    ):
+        declarations = [(f"{source}.input.{field}", audio.get(field))]
+        for label, row in companion_rows:
+            wave = row.get("wave")
+            declarations.append((f"{label}.wave.{field}", wave.get(field) if isinstance(wave, dict) else None))
+            if field != "path":
+                key = f"actual_request_audio_{field}"
+                declarations.append((f"{label}.{key}", row.get(key)))
+        known = {}
+        for label, value in declarations:
+            if valid(value):
+                known[label] = value
+            else:
+                gaps.append(label)
+                complete = False
+        require(len(set(known.values())) <= 1,
+                f"audio identity mismatch ({field}): " + ", ".join(known))
+    return "MATCHED" if complete else "UNKNOWN"
+
+
 def duration_value(value):
     if isinstance(value, Decimal) or type(value) is int:
         if Decimal(value).is_finite() and value > 0:
@@ -237,15 +271,19 @@ def validate_clip(clip, review, contract, artifacts, documents, history, compani
     metadata, response, seal, comparison = (documents[name] for name in names)
     gaps = []
     identity = dict(review, id=clip_id)
-    check_links(seal, identity, names[2], gaps)
-    for record, label in ((metadata, names[0]), (comparison, names[3])):
-        check_links(record, dict(identity, original_ordinal=ordinal), label, gaps)
-    check_links(seal, {"response_sha256": artifacts[names[1]]["sha256"]}, names[2], gaps)
+    binding_gaps = []
+    check_links(seal, identity, names[2], binding_gaps)
+    check_links(metadata, dict(identity, original_ordinal=ordinal), names[0], binding_gaps)
     request_sha = metadata.get("request_sha256")
-    if isinstance(request_sha, str) and re.fullmatch(SHA, request_sha):
-        check_links(seal, {"request_sha256": request_sha}, names[2], gaps)
-    else:
-        gaps.append(f"{names[0]}.request_sha256")
+    if not is_sha256(request_sha):
+        binding_gaps.append(f"{names[0]}.request_sha256")
+    for key, expected in (("response_sha256", artifacts[names[1]]["sha256"]), ("request_sha256", request_sha)):
+        if not is_sha256(seal.get(key)):
+            binding_gaps.append(f"{names[2]}.{key}")
+        elif is_sha256(expected):
+            check_links(seal, {key: expected}, names[2], binding_gaps)
+    gaps.extend(binding_gaps)
+    check_links(comparison, dict(identity, original_ordinal=ordinal), names[3], gaps)
 
     choices = response.get("choices")
     choice = choices[0] if isinstance(choices, list) and len(choices) == 1 and isinstance(choices[0], dict) else {}
@@ -269,16 +307,20 @@ def validate_clip(clip, review, contract, artifacts, documents, history, compani
         gaps.append(f"{names[3]}.audio_duration_seconds")
     elif duration is not None:
         require(compared_duration == duration, f"{names[3]}: sealed duration mismatch")
+    companion_rows = []
     for label, report in companions.items():
         row = row_by_ordinal(report, "original_ordinal", ordinal, label, gaps, clip_id)
+        companion_rows.append((f"{label}.rows[{ordinal}]", row))
         check_links(row, {"id": clip_id, "response_sha256": artifacts[names[1]]["sha256"]}, label, gaps)
-        if isinstance(request_sha, str) and re.fullmatch(SHA, request_sha):
+        if is_sha256(request_sha):
             check_links(row, {"request_sha256": request_sha}, label, gaps)
         observed = duration_value(row.get("actual_audio_duration_seconds"))
         if observed is None:
             gaps.append(f"{label}.actual_audio_duration_seconds")
         elif duration is not None:
             require(observed == duration, f"{label}: sealed duration mismatch")
+
+    audio_identity = check_audio_identity(metadata.get("input"), names[0], companion_rows, gaps)
 
     historical = None
     if history is not None:
@@ -312,6 +354,8 @@ def validate_clip(clip, review, contract, artifacts, documents, history, compani
     location = location_claims(standalone(sections, "位置与依据"), duration, observations)
     return {
         "id": clip_id, "ordinal": ordinal, "sources": names, "unknown_fields": gaps,
+        "seal_binding": {"status": "UNKNOWN" if binding_gaps else "MATCHED", "unknown_fields": binding_gaps},
+        "audio_metadata_identity": audio_identity,
         "sealed_duration_seconds": str(duration) if duration is not None else None,
         "original_model_text": content if isinstance(content, str) else None, "location": location,
         "transcript": {"status": transcript_status, "actual_transcription": "UNKNOWN"},
@@ -354,8 +398,8 @@ def render_notes(report):
         "",
         f"已核 {report['source_bytes_verified']} 份冻结工件的字节数和 SHA-256。实际听审为 0 次。",
         "",
-        "| 片段序号 | 位置范围 | 全文转写字段 | 尾句证据 | 定向 finish | 历史 finish |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| 片段序号 | 封存绑定 | 位置范围 | 全文转写字段 | 尾句证据 | 定向 finish | 历史 finish |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for clip in report["clips"]:
         finish = clip["finish"]
@@ -364,10 +408,11 @@ def render_notes(report):
         # finish_reason is source text. Keep it in JSON if it is not a simple token.
         targeted = targeted if re.fullmatch(r"[a-zA-Z_]+", targeted) else "见 JSON"
         historical = historical if re.fullmatch(r"[a-zA-Z_]+", historical) else "见 JSON"
-        lines.append(f"| {clip['ordinal']} | {clip['location']['status']} | {clip['transcript']['status']} | "
-                     f"{clip['tail']['status']} | {targeted} | {historical} |")
+        lines.append(f"| {clip['ordinal']} | {clip['seal_binding']['status']} | {clip['location']['status']} | "
+                     f"{clip['transcript']['status']} | {clip['tail']['status']} | {targeted} | {historical} |")
     lines.extend([
-        "", "位置范围仅按封存时长做算术核验。真实对齐、尾句和听感均为 UNKNOWN。",
+        "", "封存绑定为 UNKNOWN 时，表中的位置和文本字段仅描述原响应的算术与结构。",
+        "位置范围仅按封存时长做算术核验。真实对齐、尾句和听感均为 UNKNOWN。",
         "JSON 保留原声明、未解析字段和历史计数。COMPARED 记录处理阶段。",
         "全文、尾句、finish 和位置各自提供结构证据。音质与负责人决定沿原任务核收。",
         "",
