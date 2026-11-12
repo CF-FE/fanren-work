@@ -92,3 +92,52 @@ python3 scripts/native_receipt.py --transcript "$BOUND_CODEX_JSONL" \
 提取器核 `session_meta`、`task_started/turn_context`、同回合的原交办文本、真实final及 `task_complete`，只保存原user/final，并记录来源路径、观察字节数/哈希、时点和行号；不导出分析内容。完成事件会省略末尾记忆渲染引用，比较时仅去掉该尾块，快照仍保留原final。原件只读，输出不同内容不覆盖；新观察使用新的私有文件。快照是明确标注的本地原生证据，不伪装成桌面工具返回。
 
 派发后尚未完成时，可使用同一提取命令加 `--request-only`，生成明确标记 `codex_transcript_request.v1` 的请求快照用于 `bind`；它不包含final、不作为成果收件。源回合正文必须真实含本单元的两个固定标记，外层JSON声明不能替代它。
+
+## 封存听审证据离线核验
+
+适用于显式释放的听审证据包。核验只读冻结清单指定的元数据、响应、封存与比较记录，可附同轮报告、历史质量报告及旧脚本字节。旧脚本仅做字节校验。WAV、Base64 请求体和原检查点均在核验范围外。route-only 或 NO_ENTRY 交接仍沿本页原生收件合同办理。
+
+```sh
+python3 -B scripts/offline_qa_evidence.py \
+  --input "$FROZEN_INPUT" --input-sha256 "$APPROVED_INPUT_SHA256" \
+  --contract "$QA_CONTRACT" --output-dir "$PRIVATE_DERIVED_DIR"
+```
+
+使用负责人已确认 SHA-256 的冻结单元输入。程序读取项目、任务、单元、交付类型、执行者和 `inputs` 工件白名单。每份路径须为规范绝对本地路径，各文件名唯一。QA 合同记录本次源听审的身份、片段范围及证据要求，与冻结输入一并留档。以下是合成示例。
+
+```json
+{
+  "schema_version": 1,
+  "review": {
+    "attempt": "source-review-attempt",
+    "workflow_task_id": "source-review-task",
+    "workflow_action_id": "source-review-action"
+  },
+  "require_full_transcript": true,
+  "clips": [
+    {"id": "sample-clip", "ordinal": 37, "expected_tail": "结尾原文"}
+  ]
+}
+```
+
+- 每个序号对应四份白名单工件。示例使用 `037.input.json`、`037.response.raw.json`、`037.sealed.json` 和 `037.comparison.json`。元数据、封存和比较记录各自绑定源任务、动作、轮次与片段。封存记录绑定响应 SHA 和请求 SHA。请求 SHA 只做记录间核对。
+- 可按冻结白名单加入 `FINAL-NATIVE-AUDIT.json`、`TARGETED-REVIEW-RESULT.json`、`targeted_review.py` 和 `final_audit.py`。若白名单包含旧质量报告，合同须有 `history` 对象，提供报告文件名 `file`、旧 `task_ref`、旧 `attempt`，以及可选的 `retain_ordinals` 数组，用于保留指定历史行的原顺序标记。
+- 响应按封存的单选项文本协议读取。全文检查独立的 `【完整转写】` 段。尾句要求可按片段设置，引用比较记录中的揭稿文字，只在 `【结尾观察】` 段检查字面出现。字面命中后的观察充分性仍为 UNKNOWN。
+- `【位置与依据】` 中识别明确的起止对、`从…秒开始，到…秒结束` 区间和明确标记的点。片语标记的点须与同一响应观察或转写文字关联。范围比较用十进制及封存时长，原时码声明保存在 JSON。超界仍保留原值。合规只说明算术范围，真实定位为 UNKNOWN。
+- 原件缺失、哈希不符或明确身份冲突时以 `STOP` 和退出码 2 结束。无法可靠解析的原件或字段保留诊断与引用，相应证据为 UNKNOWN。定向与历史 finish 分列。COMPARED 记录处理阶段，音质始终为 UNKNOWN。
+
+输出目录使用独立的私有位置。成功核完冻结材料后，生成 `derived-evidence-validation.json`、`validation-notes.md` 与 `artifact-manifest.json`。原清单、合同、源码与输出路径相同时可重复生成相同字节。已有不同内容的文件会拒绝覆盖。工件清单提供前两份工件的引用和冻结单元身份。由原协调员核对实际执行与原生 final，再组装本页规定的 `collect` 清单并交现任负责人决定。
+
+固定发布从已复审的提交提取以下三份文件，核对每份文件的 SHA-256，并保留相对布局到独立版本目录。
+
+```sh
+git archive "$REVIEWED_COMMIT" -- \
+  scripts/offline_qa_evidence.py scripts/episode_delivery.py \
+  workflows/episode-delivery/definition.py > "$RELEASE_TAR"
+```
+
+从该版本目录运行上面的核验命令。运行闭包为 Python 3.10+ 标准库和这三份源码。现有单元沿用其原固定版本。合成测试从本仓根目录运行。
+
+```sh
+python3 -B -m unittest discover -s tests -p 'test_offline_qa_evidence.py' -v
+```
