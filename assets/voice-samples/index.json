@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "policy": "docs/voice-sample-archive.md",
+  "samples": [
+    {
+      "role_id": "C158",
+      "role_name": "彩流罂",
+      "sample_id": "06-08_P019__0000_0085",
+      "path": "assets/voice-samples/C158/06-08_P019__0000_0085-v1.wav",
+      "bytes": 1033004,
+      "sha256": "b23399fb4434b627935a0f7f0388ff7451169a0c4b195e6fedbe92d6229e7cdd",
+      "adoption_ref": "docs/voice-sample-adoption-records.md#c158",
+      "source_ref": "docs/voice-sample-adoption-records.md#来源台账",
+      "permission_ref": "docs/voice-sample-adoption-records.md#归档授权",
+      "adoption_scope": "EXACT_ORIGINAL_WAV_BYTES_AS_IS_ONLY",
+      "production_authorized_by_archive": false
+    }
+  ]
+}
