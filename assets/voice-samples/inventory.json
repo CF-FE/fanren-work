@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "observed_on": "2026-11-13",
-  "scope": "Fixed source snapshot, not a replacement for the original task state. Only index.json lists retrievable archived media.",
+  "scope": "Fixed 2026-11-13 source population with 2026-11-17 archive recovery and identity verification; not a replacement for the original task state. Only index.json lists retrievable archived media.",
   "registry_samples": [
     {
       "role_id": "C130",
@@ -10,8 +10,8 @@
       "bytes": 249644,
       "sha256": "533a4ef7af26e7b01d5d64ee35ce9b5ed84b45acbbc497d441d34154909409e4",
       "adoption_scope": "only_exact_sample_refs_and_current_role_direction",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C130/04-01_P016__0000_0025-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -21,8 +21,8 @@
       "bytes": 560684,
       "sha256": "6ec4095950619ab59327b111462e2d2bbbbfad91a0052b879e235eb88163a17b",
       "adoption_scope": "only_exact_sample_refs_and_current_role_direction",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C130/04-01_P021__0000_0052-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -32,8 +32,8 @@
       "bytes": 860204,
       "sha256": "585bcb58da24d0234411e9e53c970ff692f1faee043c22933b30268713798497",
       "adoption_scope": "only_exact_sample_refs_and_current_role_direction",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C131/04-01_P014__0000_0050-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -43,8 +43,8 @@
       "bytes": 234284,
       "sha256": "5609ff03c4d215b07ae11f3217080039486b658efe73f8a1a381e4e49e4cd5b7",
       "adoption_scope": "only_exact_four_sent_sample_refs_and_selected_role_directions",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C132/04-02_P038__0000_0024-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -54,8 +54,8 @@
       "bytes": 387884,
       "sha256": "87d8adce231e295167dae4557366b3687538adaac83edafa2d9aac929b56c860",
       "adoption_scope": "only_exact_four_sent_sample_refs_and_selected_role_directions",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C132/04-02_P041__0000_0035-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -65,8 +65,8 @@
       "bytes": 372524,
       "sha256": "0a9924fcc4e44536b781782d8551bbbdd895687f4e332caf3c6a2458a5f8bb38",
       "adoption_scope": "only_exact_four_sent_sample_refs_and_selected_role_directions",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C133/04-02_P044__0000_0034-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -76,8 +76,8 @@
       "bytes": 506924,
       "sha256": "bf850ef7ff6e033dffc8cebd84bc71fa8cc774e70f175d3afc1b60a1802d1c9e",
       "adoption_scope": "only_exact_four_sent_sample_refs_and_selected_role_directions",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C133/04-02_P050__0000_0062-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -87,8 +87,8 @@
       "bytes": 92204,
       "sha256": "05f45535b7f3ec16767e53660e5639d6088e95a4ba9736f9bf257e50dcabbaa6",
       "adoption_scope": "only_exact_one_sent_sample_and_selected_role_direction_including_disclosed_opening_question",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C134/04-03_P032__0000_0013-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -98,8 +98,8 @@
       "bytes": 245804,
       "sha256": "35f7346079ea4657d466753199aebb40a235e0b48d0d4bef9c2292a420cd126d",
       "adoption_scope": "exact_parent_scoped_owner_acceptance_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C135/04-04_P041__0000_0021-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -109,8 +109,8 @@
       "bytes": 295724,
       "sha256": "36b73e048df70cf64589b137ce41246b63eb07f22c128a37a224288d2590b891",
       "adoption_scope": "exact_parent_scoped_owner_acceptance_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C135/04-04_P046__0000_0036-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -120,8 +120,8 @@
       "bytes": 418604,
       "sha256": "8b9cdec28b3ced0c0a7f627b0307f1a156e018d422b5bde58e5b10ff0219e1bf",
       "adoption_scope": "exact_parent_scoped_owner_acceptance_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C136/04-04_P050__0000_0040-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -131,8 +131,8 @@
       "bytes": 53804,
       "sha256": "8d2a0c31e4092a0fb895586e7412f7f82593945992b220b39cf2402073f81c0b",
       "adoption_scope": "exact_parent_scoped_owner_acceptance_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C136/04-04_P059__0000_0006-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -142,8 +142,8 @@
       "bytes": 514604,
       "sha256": "edba91744cb68691cfa00cd344e2b6278c05d44ce5854ce5c54e687cdb3bd8fe",
       "adoption_scope": "exact_scoped_owner_acceptance_four_original_bytes_and_two_voice_directions_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C137/04-05_P013__0000_0041-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -153,8 +153,8 @@
       "bytes": 791084,
       "sha256": "d16f00fb88906d71b142a0bbe81015e81391665d5b66e0df09a05c5bab744329",
       "adoption_scope": "exact_scoped_owner_acceptance_four_original_bytes_and_two_voice_directions_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C137/04-05_P017__0000_0067-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -164,8 +164,8 @@
       "bytes": 157484,
       "sha256": "f0e376a6070b5117c03c5de3aecbd487e8b906767d03962367796ffaab10eed9",
       "adoption_scope": "exact_scoped_owner_acceptance_four_original_bytes_and_two_voice_directions_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C138/04-05_P015__0000_0019-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -175,8 +175,8 @@
       "bytes": 257324,
       "sha256": "4e1dddec56cd34b893216dfee9d96f4694cd5100c0df6aeb7e281e681cc8b74d",
       "adoption_scope": "exact_scoped_owner_acceptance_four_original_bytes_and_two_voice_directions_only",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C138/04-05_P038__0000_0029-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -186,8 +186,8 @@
       "bytes": 518444,
       "sha256": "1e5e60ab232e5ae917332719dee3f4e5787606262e5b71d183d0a30c7a89bc1f",
       "adoption_scope": "only_exact10.8s_original_P048_sample_and_direction",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C139/04-09_P048__0000_0038-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -197,8 +197,8 @@
       "bytes": 211244,
       "sha256": "202f987178c2c79ee737fe9b4ee594ce0f2d5bb06de5851004b231c93f4eb32a",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C140/05-02_P008__0000_0023-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -208,8 +208,8 @@
       "bytes": 334124,
       "sha256": "b7e1553984f77567826f7b89b817e3e17483e172c22617fbdd1504dbfde87475",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C141/05-03_P007__0000_0030-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -219,8 +219,8 @@
       "bytes": 161324,
       "sha256": "9f0754a309fffae0e0942992f9c91c5f24539d7e375719443d70f602009ce70a",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C141/05-03_P015__0000_0018-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -230,8 +230,8 @@
       "bytes": 649004,
       "sha256": "9ad40a39e7dde1a9cba14f87cc08ea8f059dfeecb52026fe3996b12a5061eaf2",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C142/05-03_P008__0000_0057-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -241,8 +241,8 @@
       "bytes": 361004,
       "sha256": "b9e340078fbef2ed384404b20e498564d588b95ba540cce33eba4847c173bbc7",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C142/05-03_P017__0000_0024-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -252,8 +252,8 @@
       "bytes": 883244,
       "sha256": "4efa9de257a804bd1202e3f311a4e86fce29b41573bcc3e964c232cfd875689c",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C143/06-01_P010__0000_0074-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -263,8 +263,8 @@
       "bytes": 241964,
       "sha256": "c8ea15e24af1167900b424fcb4c891feec3d7a741dd28244d55fac3c3503fd28",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C143/06-01_P013__0000_0024-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -274,8 +274,8 @@
       "bytes": 844844,
       "sha256": "ca166b6cc5cc5c267173f9a05cf8f8bb41c31e7ba872340e97ce577f16a702cd",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C143/06-01_P017__0000_0073-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -285,8 +285,8 @@
       "bytes": 649004,
       "sha256": "cacf73d46a9b9f0bab9811f6e83e6de75f981b5e9ed3e5d7aeed867d7e368ec4",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C144/06-01_P019__0000_0063-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -296,8 +296,8 @@
       "bytes": 798764,
       "sha256": "ec11049058ff11693ecf34b5691202fe7a868ede38f87345e12e94349b684d0a",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C145/06-02_P017__0000_0073-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -307,8 +307,8 @@
       "bytes": 80684,
       "sha256": "a40a556efe0abb423eab8ba9773a1238410890b9e1c997e74d138488ee5f8d71",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C145/06-02_P023__0000_0009-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -318,8 +318,8 @@
       "bytes": 864044,
       "sha256": "aed17d25c94ea3152bbf19c8c7f262aea864c4141b7c6f68d1f6e4301c2a1e02",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C146/06-03_P029__0000_0072-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -329,8 +329,8 @@
       "bytes": 645164,
       "sha256": "1bca3c95aae4b0a3875ea4f0d0eecdeba498e986fa4ebe643123a4b749adbb93",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C147/06-04_P002__0000_0054-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -340,8 +340,8 @@
       "bytes": 430124,
       "sha256": "5c4d9ca575e959a72046959ff2a6d6f12283373248818ca5e26d875b26fecdfb",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C148/06-04_P023__0000_0036-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -351,8 +351,8 @@
       "bytes": 683564,
       "sha256": "e58d7bdb3a876352c47c2a902e7190bc093e0db92922298070f25ac2cb2220c6",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C149/06-04_P037__0000_0048-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -362,8 +362,8 @@
       "bytes": 453164,
       "sha256": "274449320da199a4a5ddd0f484cba9bae962594a4dec8cb9f5f0d6cc861d4867",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C150/06-05_P006__0000_0040-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -373,8 +373,8 @@
       "bytes": 672044,
       "sha256": "8465c79f72126dd7ab01e5d5503df5a1bdfdb4ad7152796cdc032b040d7b2a7e",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C151/06-05_P010__0000_0050-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -384,8 +384,8 @@
       "bytes": 1278764,
       "sha256": "72386b5c2d4722b1311600b4c0eb6a398206370b9a1333188f8069fde262a066",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C152/06-06_P014__0000_0100-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -395,8 +395,8 @@
       "bytes": 760364,
       "sha256": "03df88a26e93f6b87b0497b612b1096824265305686f356c5ff80feeab4ab25a",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C153/06-06_P020__0000_0077-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -406,8 +406,8 @@
       "bytes": 510764,
       "sha256": "900081f52785db1e2c0a83305bf16b9bb4afb37873522691c9dbb743eb7c09d6",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C154/06-07_P014__0000_0051-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -417,8 +417,8 @@
       "bytes": 791084,
       "sha256": "bb0ad15e3f0ccd5eb75fc8197a872970795cc20ad7eb47b441ff1bfbb66dc835",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C155/06-07_P017__0000_0062-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -428,8 +428,8 @@
       "bytes": 983084,
       "sha256": "a227fd32f7c7b8002b49bbf29b1464798839567fe43bda671d840a05c78f4a9d",
       "adoption_scope": "EXACT_ORIGINAL_WAV_BYTES_AS_IS_ONLY",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C156/06-08_P003__0000_0099-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -439,8 +439,8 @@
       "bytes": 806444,
       "sha256": "0fc3ac0f422d2fcb9179732ed65e77f1c13b69d8bbc789aeb3116c8976a10995",
       "adoption_scope": "EXACT_ORIGINAL_WAV_BYTES_AS_IS_ONLY",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C157/06-08_P011__0000_0068-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -461,8 +461,8 @@
       "bytes": 407084,
       "sha256": "eec97f64e474a74a1a831a6405a5e769c815f5b8a5fcc67bba65461516f4059c",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C159/06-10_P005__0000_0050-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -472,41 +472,41 @@
       "bytes": 587564,
       "sha256": "da4d78b17af7d33c8604bdf29dde38668e92d9842750a72f4d81eb9d38e1146e",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C160/06-10_P018__0000_0049-v1.wav",
       "production_authorized_by_archive": false
     },
     {
       "role_id": "C161",
       "role_name": "涂姓人面蛟",
-      "sample_id": null,
-      "bytes": null,
-      "sha256": null,
-      "adoption_scope": "登记的精确样片及选声范围",
-      "state": "exact_identity_pending",
-      "path": null,
+      "sample_id": "06-09_P017__0000_0022",
+      "bytes": 169004,
+      "sha256": "50ba9b21d58977857f56173d56e2f82c45b7cd7ad8fc3acf94ec40922ff0563c",
+      "adoption_scope": "EXACT_ORIGINAL_WAV_BYTES_AS_IS_ONLY",
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C161/06-09_P017__0000_0022-v1.wav",
       "production_authorized_by_archive": false
     },
     {
       "role_id": "C162",
       "role_name": "翡姓青年",
-      "sample_id": null,
-      "bytes": null,
-      "sha256": null,
-      "adoption_scope": "登记的精确样片及选声范围",
-      "state": "exact_identity_pending",
-      "path": null,
+      "sample_id": "06-09_P019__0000_0056",
+      "bytes": 556844,
+      "sha256": "92832a60244e7ebd8522daffdc4ca8eacce7f0ad7e00e524aa2b61a42ce9c3ce",
+      "adoption_scope": "EXACT_ORIGINAL_WAV_BYTES_AS_IS_ONLY",
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C162/06-09_P019__0000_0056-v1.wav",
       "production_authorized_by_archive": false
     },
     {
       "role_id": "C163",
       "role_name": "萧布衣",
-      "sample_id": null,
-      "bytes": null,
-      "sha256": null,
-      "adoption_scope": "登记的精确样片及选声范围",
-      "state": "exact_identity_pending",
-      "path": null,
+      "sample_id": "06-09_P030__0000_0031",
+      "bytes": 311084,
+      "sha256": "ff121f763548a83024b940a61a0d7466cb375db6732afdb6df2675d399a5d316",
+      "adoption_scope": "EXACT_ORIGINAL_WAV_BYTES_AS_IS_ONLY",
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C163/06-09_P030__0000_0031-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -516,8 +516,8 @@
       "bytes": 503084,
       "sha256": "1c18143220f7b776afdff0537cda56b12de05a1b860b23713a598e4a1e0a0ea9",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C164/06-11_P002__0000_0044-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -527,8 +527,8 @@
       "bytes": 560684,
       "sha256": "431d9e441c1c98b0a0aa6adcfd9124683f8d40dd5e1b37165d09f3fef7ad9aac",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C165/06-11_P016__0000_0055-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -538,8 +538,8 @@
       "bytes": 226604,
       "sha256": "bbee1f4ad3bc215e09079d461a4c737fa80418c20e08298ecd35cbb290dd4f7c",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C166/06-11_P018__0000_0029-v1.wav",
       "production_authorized_by_archive": false
     },
     {
@@ -549,8 +549,8 @@
       "bytes": 745004,
       "sha256": "dbd020632e92c63d613780531db4427048a145cc00258a11d254be63a280cb92",
       "adoption_scope": "登记的精确样片及选声范围",
-      "state": "source_not_obtained",
-      "path": null,
+      "state": "stored_in_this_revision",
+      "path": "assets/voice-samples/C176/07-06_P047__0000_0048-v1.wav",
       "production_authorized_by_archive": false
     }
   ],
@@ -595,5 +595,6 @@
       "source_ref": "docs/voice-sample-adoption-records.md#其他独立采用范围",
       "production_authorized_by_archive": false
     }
-  ]
+  ],
+  "archive_verified_on": "2026-11-17"
 }
