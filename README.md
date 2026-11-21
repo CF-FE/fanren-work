@@ -8,4 +8,4 @@
 
 ## 项目工作流
 
-[工作流集合与成果交接](workflows/README.md)维护程序步骤、决定点和接手入口。项目沿本 README 共用已有教程与制作规则；当次进展仍查原 Issue／Project。
+[工作流集合与成果交接](workflows/README.md)维护程序步骤、决定点和接手入口。项目沿本 README 共用已有教程与制作规则；项目进度、负责人及验收结论统一查 Multica 的 fanren-work 项目看板和对应 Issue。

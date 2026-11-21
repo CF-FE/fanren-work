@@ -1,6 +1,6 @@
 # 项目工作流
 
-负责人选择任务单元、输入与核收条件，程序执行明确步骤，成果沿原任务交给接手方。实时进展查 [Issue #2](https://github.com/CF-FE/fanren-work/issues/2) 与 [Project #5](https://github.com/orgs/CF-FE/projects/5?pane=issue&itemId=285760278)。
+负责人选择任务单元、输入与核收条件，程序执行明确步骤，成果沿原任务交给接手方。实时进展查 Multica 的 fanren-work 项目看板与原任务卡。制作规范见 [GitHub Issue #2](https://github.com/CF-FE/fanren-work/issues/2)。
 
 <!-- workflow-index:start -->
 ## 工作流索引
@@ -57,7 +57,7 @@ flowchart TD
 - 用途与步骤：见上图；从 `prepare` 开始。
 - 输入：`--input` JSON；字段由本流程的 program 操作定义。
 - 输出：状态 JSON 的 `outputs`、`decisions`、`action` 和执行检查点。
-- 职责与收件合同：[首集后续单元](episode-delivery/README.md)。原 Herdr 协调员承接原动作，现任项目负责人决定本单元成果；实时进展沿上方原 Issue / Project。
+- 职责与收件合同：[首集后续单元](episode-delivery/README.md)。原 Herdr 协调员承接原动作，现任项目负责人决定本单元成果；实时进展记入原 Multica Issue。
 - 项目共同记忆：[阅读入口](../README.md)。
 - 源码：[definition.py](episode-delivery/definition.py) · [workflow.py](episode-delivery/workflow.py)。
 
@@ -106,7 +106,7 @@ flowchart TD
 - 用途与步骤：见上图；从 `prepare` 开始。
 - 输入：`--input` JSON；字段由本流程的 program 操作定义。
 - 输出：状态 JSON 的 `outputs`、`decisions`、`action` 和执行检查点。
-- 责任岗位、接手方及实时 Issue / Project：由项目在本块外补充；规格未定义。
+- 责任岗位、接手方及对应的 Multica Issue 由项目负责人在本块外登记。
 - 项目共同记忆：[阅读入口](../README.md)。
 - 源码：[definition.py](decision-publication-audit/definition.py) · [workflow.py](decision-publication-audit/workflow.py)。
 

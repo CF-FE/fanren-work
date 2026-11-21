@@ -1,6 +1,6 @@
 # episode08-01-continuation
 
-现任负责人决定的首集领域工作流。它把 Q／R／P／C 节点映射到共用 [episode-delivery 单元执行器](../episode-delivery/README.md) 的独立运行，不另建调度引擎。真实输入、执行者、交期、结果与原跟进项映射在仓库外私有 registry 中维护；进展沿 [Issue #2](https://github.com/CF-FE/fanren-work/issues/2)、[封面 Issue #5](https://github.com/CF-FE/fanren-work/issues/5) 和 [Project #5](https://github.com/orgs/CF-FE/projects/5)。
+现任负责人决定的首集领域工作流。它把 Q／R／P／C 节点映射到共用 [episode-delivery 单元执行器](../episode-delivery/README.md) 的独立运行，不另建调度引擎。真实输入、执行者、交期、结果与原跟进项映射在仓库外私有 registry 中维护；当前进度与验收结论查 fanren-work 的 Multica 原卡。制作依据见 [Issue #2](https://github.com/CF-FE/fanren-work/issues/2) 和[封面 Issue #5](https://github.com/CF-FE/fanren-work/issues/5)。
 
 ```mermaid
 flowchart TD

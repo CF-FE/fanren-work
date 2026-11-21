@@ -32,7 +32,7 @@ Python 3.10+ 标准库即可。源码归本项目维护，运行时读取相邻 
 }
 ```
 
-从项目根运行，将输入位置和原任务替换为实际值：
+从项目根运行。新任务将 `ORIGINAL_TASK` 替换为所属 Multica 原卡的 UUID 或链接，并传入实际输入路径。
 
 ```bash
 RUN="$(mktemp -d /tmp/fanren-metadata.XXXXXX)/run.sqlite3"
@@ -49,4 +49,4 @@ python3 workflows/batch02-metadata-handoff/workflow.py --state "$RUN" resume
 
 恢复使用本次原源码、输入和检查点；`status` 只读当前状态。运行 JSON 的 `outputs.verify_metadata`、`outputs.build_handoff`、`action` 及检查点共同保存交接关联。`FINISHED` 记录程序技术结束，业务采用另以负责人的实际决定为准。
 
-共同记忆与规则沿[项目 README](../../README.md)进入。当前进展：[Issue #2](https://github.com/CF-FE/fanren-work/issues/2) · [Project #5](https://github.com/orgs/CF-FE/projects/5?pane=issue&itemId=285760278)。
+共同记忆与规则沿[项目 README](../../README.md)进入。进度和验收结论沿 `--task` 指定的 Multica 原卡跟进。制作规范见 [GitHub Issue #2](https://github.com/CF-FE/fanren-work/issues/2)。

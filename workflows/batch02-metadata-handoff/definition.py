@@ -11,10 +11,6 @@ EXPECTED_SHA256 = (
     "e0a2154835813dd217977e17c002c4a"
 )
 ISSUE_URL = "https://github.com/CF-FE/fanren-work/issues/2"
-PROJECT_ITEM_URL = (
-    "https://github.com/orgs/CF-FE/projects/5"
-    "?pane=issue&itemId=285760278"
-)
 TERMINAL_ACCEPTANCE_REF = (
     "fanren-issue2-batch02-1706-owner-decision-20261104"
     "/terminal-owner-review"
@@ -76,7 +72,7 @@ def verify_metadata(root, run):
     return {
         "task": {
             "issue": ISSUE_URL,
-            "project_item": PROJECT_ITEM_URL,
+            "task_ref": run["task"],
         },
         "source": {
             "path": str(source_path),
