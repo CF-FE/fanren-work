@@ -57,7 +57,7 @@ flowchart TD
 - 用途与步骤：见上图；从 `prepare` 开始。
 - 输入：`--input` JSON；字段由本流程的 program 操作定义。
 - 输出：状态 JSON 的 `outputs`、`decisions`、`action` 和执行检查点。
-- 职责与收件合同：[首集后续单元](episode-delivery/README.md)。原 Herdr 协调员承接原动作，现任项目负责人决定本单元成果；实时进展记入原 Multica Issue。
+- 职责与收件合同：[首集后续单元](episode-delivery/README.md)。旧单元保留原接手人与回执供对账。新单元由现任项目负责人在 Multica 原卡组织执行与验收。
 - 项目共同记忆：[阅读入口](../README.md)。
 - 源码：[definition.py](episode-delivery/definition.py) · [workflow.py](episode-delivery/workflow.py)。
 

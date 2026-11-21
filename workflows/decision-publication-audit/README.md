@@ -1,5 +1,7 @@
 # 凡人自动发布接线核验
 
+2026-11-21 起，新的审计任务由 Multica 项目原卡安排。下述 Herdr 投递、原观察器和冻结输入仅用于追溯原有审计。
+
 本流程沿 [凡人 Issue #2](https://github.com/CF-FE/fanren-work/issues/2) 独立核验工程采用。现任负责人批准的 `receipt_first` 和 `trace_first` 顺序不同，必验内容相同。协调员将工作流输出中的 `audit_order` 放入原生任务。两条路线均不适合时，Decision Service 的非执行候选 `needs-replan` 将任务交回原规划者。音频制作、整集放行及原有检查点各自沿原工作流维护。
 
 ## 固定输入和原生执行
