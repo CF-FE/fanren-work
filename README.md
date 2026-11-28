@@ -5,6 +5,7 @@
 - [Windows 小显存 Qwen-TTS 环境重建准备指南](docs/audio-environment-windows-int4.md)
 - [历史 Lody 工作区的会话巡检与生命周期管理](docs/session-lifecycle-management.md)
 - [角色配音样片归档规范](docs/voice-sample-archive.md) · [已采纳样片及待补原件](assets/voice-samples/README.md)
+- [核验 PCM16 WAV 并生成回执（命令、函数与复验）](docs/pcm-wav.md)
 
 ## 项目工作流
 
